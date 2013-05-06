@@ -145,8 +145,9 @@ namespace
     {
         errorbox( assertion );
 
-        if( !debugger() )
+        if( !debugger() ) {
             ; // oops :s
+        }
 
         die( -1 );
     }
@@ -616,6 +617,8 @@ void die( int errorcode, const std::string &reason )
 std::string hexdump( const void *data, size_t num_bytes, const void *self )
 {
 #   ifdef _MSC_VER
+#       pragma warning( push )
+#       pragma warning( disable : 4996 )
 #       define $vsnprintf _vsnprintf
 #   else
 #       define $vsnprintf  vsnprintf
@@ -658,15 +661,15 @@ std::string hexdump( const void *data, size_t num_bytes, const void *self )
         }
     };
 
-    int maxwidth = 80;
-    int width = 16; //column width
-    int width_offset_block = (8 + 1);
-    int width_chars_block  = (width * 3 + 1) + sizeof("asc");
-    int width_hex_block    = (width * 3 + 1) + sizeof("hex");
-    int width_padding = maxwidth - ( width_offset_block + width_chars_block + width_hex_block );
-    int blocks = width_padding / ( width_chars_block + width_hex_block ) ;
+    unsigned maxwidth = 80;
+    unsigned width = 16; //column width
+    unsigned width_offset_block = (8 + 1);
+    unsigned width_chars_block  = (width * 3 + 1) + sizeof("asc");
+    unsigned width_hex_block    = (width * 3 + 1) + sizeof("hex");
+    unsigned width_padding = maxwidth - ( width_offset_block + width_chars_block + width_hex_block );
+    unsigned blocks = width_padding / ( width_chars_block + width_hex_block ) ;
 
-    size_t dumpsize = ( num_bytes < width * 16 ? num_bytes : size_t( width * 16 ) ); //16 lines max
+    unsigned dumpsize = ( num_bytes < width * 16 ? num_bytes : width * 16 ); //16 lines max
 
     std::string result;
 
@@ -686,9 +689,9 @@ std::string hexdump( const void *data, size_t num_bytes, const void *self )
         result += local::format("%p ", (size_t)(p + i) ); //%08x, %08zx
 
         //chars blocks
-        for( int b = 0; b < blocks; b++)
+        for( unsigned b = 0; b < blocks; b++)
         {
-            for( int c = 0 ; c < width ; c++ )
+            for( unsigned c = 0 ; c < width ; c++ )
                 result += local::format(" %c ", i + c >= dumpsize ? '.' : p[i + c] < 32 || p[i + c] >= 127 ? '.' : p[i + c]);
 
             result += "asc\n";
@@ -698,9 +701,9 @@ std::string hexdump( const void *data, size_t num_bytes, const void *self )
         result += local::format("%p ", (size_t)(p + i) ); //%08x, %08zx
 
         //hex blocks
-        for( int b = 0; b < blocks; b++)
+        for( unsigned b = 0; b < blocks; b++)
         {
-            for( int c = 0; c < width ; c++)
+            for( unsigned c = 0; c < width ; c++)
                 result += local::format( i + c < dumpsize ? "%02x " : "?? ", p[i + c]);
 
             result += "hex\n";
@@ -714,6 +717,9 @@ std::string hexdump( const void *data, size_t num_bytes, const void *self )
     return result;
 
 #   undef $vsnprintf
+#   ifdef _MSC_VER
+#       pragma warning( pop )
+#   endif
 }
 
 #undef $debug
