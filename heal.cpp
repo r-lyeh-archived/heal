@@ -50,9 +50,8 @@
 #   pragma comment( lib, "user32.lib" )
 #else
 #   include <unistd.h>
-#   ifndef __APPLE__
-#       include <execinfo.h>
-#   endif
+#   include <signal.h>
+#   include <execinfo.h>
 #   if defined(HAVE_SYS_SYSCTL_H) && \
         !defined(_SC_NPROCESSORS_ONLN) && !defined(_SC_NPROC_ONLN)
 #       include <sys/time.h>
@@ -267,25 +266,25 @@ void errorbox( const std::string &body, const std::string &title ) {
 // DEMANGLE
 
 std::string demangle( const std::string &name ) {
-    $win32(
+    $win32({
     char demangled[1024];
     return (UnDecorateSymbolName(name.c_str(), demangled, sizeof( demangled ), UNDNAME_COMPLETE)) ? demangled : name;
-    )
-    $gcc(
+    })
+    $gcc({
     char demangled[1024];
     size_t sz = sizeof(demangled);
     int status;
     abi::__cxa_demangle(name.c_str(), demangled, &sz, &status);
     return !status ? demangled : name;
-    )
-    $linux(
+    })
+    $linux({
     FILE *fp = popen( (std::string("echo -n \"") + name + std::string("\" | c++filt" )).c_str(), "r" );
     if (!fp) { return name; }
     char demangled[1024];
     char *line_p = fgets(demangled, sizeof(demangled), fp);
     pclose(fp);
     return line_p;
-    )
+    })
     $undefined(
     return name;
     )
@@ -455,9 +454,9 @@ namespace //heal
         )
 
         $gcc(
-            char **strings;
-            strings = backtrace_symbols(frames, num_frames);
-            if (!strings)
+            char **_strings;
+            _strings = backtrace_symbols(frames, num_frames);
+            if (!_strings)
             {
                 return strings();
             }
@@ -467,7 +466,7 @@ namespace //heal
             for( int cnt = 0; cnt < num_frames; cnt++ )
             {
                 // Decode the strings
-                char *ptr = strings[cnt];
+                char *ptr = _strings[cnt];
                 char *filename = ptr;
                 const char *function = "";
 
@@ -513,7 +512,7 @@ namespace //heal
                     free(new_function);
             }
 
-            free (strings);
+            free (_strings);
             return backtrace_text;
         )
         $apple(

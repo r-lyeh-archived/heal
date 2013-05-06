@@ -36,7 +36,7 @@ std::string hexdump( const void *data, size_t num_bytes, const void *self = 0 );
 template<typename T> inline std::string hexdump( const T& obj ) {
     return hexdump( obj.data(), obj.size() * sizeof(*obj.begin()), &obj );
 }
-template<> inline std::string hexdump( const nullptr_t &obj ) {
+template<> inline std::string hexdump( const std::nullptr_t &obj ) {
     return hexdump( 0,0,0 );
 }
 template<> inline std::string hexdump( const char &obj ) {
