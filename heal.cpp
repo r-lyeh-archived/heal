@@ -205,14 +205,26 @@ bool is_release() {
 
 // DEBUGGER
 
-// enable core dumps for debug builds
-// after a crash try to do something like 'gdb ./a.out core'
-#if defined(NDEBUG) || defined(_NDEBUG)
-    const bool are_coredumps_enabled = false;
-#else
-#   include <sys/resource.h>
-    rlimit core_limit = { RLIM_INFINITY, RLIM_INFINITY };
-    const bool are_coredumps_enabled = setrlimit( RLIMIT_CORE, &core_limit ) == 0;
+#ifdef __linux__
+
+    // enable core dumps for debug builds
+    // after a crash try to do something like 'gdb ./a.out core'
+#   if defined(NDEBUG) || defined(_NDEBUG)
+        const bool are_coredumps_enabled = false;
+#   else
+#       include <sys/resource.h>
+        rlimit core_limit = { RLIM_INFINITY, RLIM_INFINITY };
+        const bool are_coredumps_enabled = setrlimit( RLIMIT_CORE, &core_limit ) == 0;
+#   endif
+
+    struct file {
+        static bool exists( const std::string &pathfile) {
+        /*struct stat buffer;
+          return stat( pathfile.c_str(), &buffer ) == 0; */
+          return access( pathfile.c_str(), F_OK ) != -1; // _access(fn,0) on win
+        }
+    };
+
 #endif
 
 bool debugger( const std::string &reason )
@@ -253,6 +265,8 @@ bool debugger( const std::string &reason )
             sys = sys + (" --tui -q -ex 'set pagination off' -ex 'continue' --pid=") + pid + " --args `cat /proc/" + pid + "/cmdline`";
             if( has_xterm ) {
                 sys = std::string("xterm 2>/dev/null -e \"") + sys + "\"";
+            } else {
+                // sys = std::string("bash -c \"") + sys + "\"";
             }
             std::thread( system, sys.c_str() ).detach();
 #if 0
@@ -325,13 +339,17 @@ void errorbox( const std::string &body, const std::string &title ) {
         MessageBoxA( 0, body.c_str(), title.size() ? title.c_str() : "", 0 | MB_ICONERROR | MB_SYSTEMMODAL );
     )
     $linux(
-        // gtkdialog3
-        // xmessage -file ~/.bashrc -buttons "Ok:1, Cancel:2, Help:3" -print -nearmouse
-        //std::string cmd = std::string("zenity --information --text \"") + body + std::string("\" --title=\"") + title + "\"";
-        //std::string cmd = std::string("dialog --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
-        std::string cmd = std::string("whiptail --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
-        //std::string cmd = std::string("xmessage \"") + title + body + "\"";
-        std::system( cmd.c_str() );
+        if( file::exists("/usr/bin/whiptail") ) {
+            // gtkdialog3
+            // xmessage -file ~/.bashrc -buttons "Ok:1, Cancel:2, Help:3" -print -nearmouse
+            //std::string cmd = std::string("zenity --information --text \"") + body + std::string("\" --title=\"") + title + "\"";
+            //std::string cmd = std::string("dialog --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
+            std::string cmd = std::string("whiptail --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
+            //std::string cmd = std::string("xmessage \"") + title + body + "\"";
+            std::system( cmd.c_str() );
+        } else {
+            fprintf( stderr, "%s", ( title.size() > 0 ? title + ": " + body + "\n" : body + "\n" ).c_str() );
+        }
     )
     $undefined(
         fprintf( stderr, "%s", ( title.size() > 0 ? title + ": " + body + "\n" : body + "\n" ).c_str() );
