@@ -74,56 +74,59 @@
 
 // OS
 
+#define $yes(...) __VA_ARGS__
+#define $no(...)
+
 #ifdef _WIN32
-#   define $win32(...) __VA_ARGS__
-#   define $defined(...)
+#   define $win32   $yes
+#   define $defined $yes
 #else
-#   define $win32(...)
+#   define $win32   $no
 #endif
 
 #ifdef __linux__
-#   define $linux(...) __VA_ARGS__
-#   define $defined(...)
+#   define $linux   $yes
+#   define $defined $yes
 #else
-#   define $linux(...)
+#   define $linux   $no
 #endif
 
 #ifdef __APPLE__
-#   define $apple(...) __VA_ARGS__
-#   define $defined(...)
+#   define $apple   $yes
+#   define $defined $yes
 #else
-#   define $apple(...)
+#   define $apple   $no
 #endif
 
-#ifndef $defined
-#   define $undefined(...) __VA_ARGS__
-#else
+#ifdef $defined
 #   undef  $defined
-#   define $undefined(...)
+#   define $undefined $no
+#else
+#   define $undefined $yes
 #endif
 
 // COMPILERS
 
 #ifdef _MSC_VER
-#   define $msvc(...) __VA_ARGS__
+#   define $msvc $yes
 #else
-#   define $msvc(...)
+#   define $msvc $no
 #endif
 
 #ifdef __GNUC__
-#   define $gcc(...) __VA_ARGS__
+#   define $gcc $yes
 #else
-#   define $gcc(...)
+#   define $gcc $no
 #endif
 
-#   define $other(...) __VA_ARGS__
+#   define $other $yes
 
 #if defined(NDEBUG) || defined(_NDEBUG)
-#   define $release(...) __VA_ARGS__
-#   define $debug(...)
+#   define $release $yes
+#   define $debug   $no
 #else
-#   define $debug(...) __VA_ARGS__
-#   define $release(...)
+#   define $debug   $yes
+#   define $release $no
 #endif
 
 // INFO MESSAGES
@@ -132,8 +135,10 @@
 #    pragma message( "<heal/heal.cpp> says: do not forget /Zi, /Z7 or /C7 compiler settings! /Oy- also helps" )
 #endif
 
-#ifdef __GNUC__
-#    warning "<heal/heal.cpp> says: do not forget -g -rdynamic compiler settings!"
+#if   defined(__clang__)
+#    warning "<heal/heal.cpp> says: do not forget -g compiler settings!"
+#elif defined(__GNUC__)
+#    warning "<heal/heal.cpp> says: do not forget -g -lpthread compiler settings!"
 #endif
 
 // ASSERT
@@ -200,6 +205,16 @@ bool is_release() {
 
 // DEBUGGER
 
+// enable core dumps for debug builds
+// after a crash try to do something like 'gdb ./a.out core'
+#if defined(NDEBUG) || defined(_NDEBUG)
+    const bool are_coredumps_enabled = false;
+#else
+#   include <sys/resource.h>
+    rlimit core_limit = { RLIM_INFINITY, RLIM_INFINITY };
+    const bool are_coredumps_enabled = setrlimit( RLIMIT_CORE, &core_limit ) == 0;
+#endif
+
 bool debugger( const std::string &reason )
 {
     if( reason.size() > 0 )
@@ -213,7 +228,60 @@ bool debugger( const std::string &reason )
     )
 
     $linux(
-    raise(SIGTRAP); //POSIX
+
+        struct file {
+            static bool exists( const std::string &pathfile) {
+            /*struct stat buffer;
+              return stat( pathfile.c_str(), &buffer ) == 0; */
+              return access( pathfile.c_str(), F_OK ) != -1; // _access(fn,0) on win
+            }
+        };
+        std::string gdb   = "/usr/bin/gdb";
+        std::string ddd   = "/usr/bin/ddd";
+        std::string xterm = "/usr/bin/xterm";
+        bool has_ddd   = false; //file::exists(ddd);
+        bool has_gdb   = file::exists(gdb);
+        bool has_xterm = file::exists(xterm);
+        static std::string sys;
+        sys = ( has_ddd ? ddd : ( has_gdb ? gdb : std::string() ));
+        if( !sys.empty() ) {
+            std::string pid = std::to_string( getpid() );
+            // [ok]
+            // eval-command=bt
+            // -ex "bt full"
+            // gdb --batch --quiet -ex "thread apply all bt full" -ex "quit" ${exe} ${corefile}
+            sys = sys + (" --tui -q -ex 'set pagination off' -ex 'continue' --pid=") + pid + " --args `cat /proc/" + pid + "/cmdline`";
+            if( has_xterm ) {
+                sys = std::string("xterm 2>/dev/null -e \"") + sys + "\"";
+            }
+            std::thread( system, sys.c_str() ).detach();
+#if 0
+            errorbox( "press a key to continue...", "invoking debugger" );
+#endif
+#if 1
+            usleep( 4 * 1000000 );
+            kill( getpid(), SIGTRAP );
+//            asm("int $0x3");
+            //breakpoint();
+#endif
+#if 0
+            pause();
+#endif
+            return true;
+        }
+
+//    asm("trap");
+//    asm("int3");
+//    kill( getpid(), SIGINT );
+    /*
+    kill( getpid(), SIGSTOP );
+    kill( getpid(), SIGTERM );
+    kill( getpid(), SIGHUP );
+    kill( getpid(), SIGTRAP );
+    */
+    // kill( getpid(), SIGSEGV );
+    // raise(SIGTRAP); //POSIX
+    // raise(SIGINT);  //POSIX
     )
 
 // compiler based
@@ -227,12 +295,14 @@ bool debugger( const std::string &reason )
 
     // gcc
     $gcc(
-    __builtin_trap();
+    //__builtin_trap();
+    //__asm__ __volatile__("int3");
     )
 
 // standard
 
-    //assert( !"debugger() requested" );
+    //abort();
+    //assert( !"<heal/heal.cpp> says: debugger() has been requested" );
     // still here? duh, maybe we are in release mode...
 
 // host based
@@ -255,7 +325,12 @@ void errorbox( const std::string &body, const std::string &title ) {
         MessageBoxA( 0, body.c_str(), title.size() ? title.c_str() : "", 0 | MB_ICONERROR | MB_SYSTEMMODAL );
     )
     $linux(
-        std::string cmd = std::string("zenity --information --text \"") + body + std::string("\" --title=\"") + title + "\"";
+        // gtkdialog3
+        // xmessage -file ~/.bashrc -buttons "Ok:1, Cancel:2, Help:3" -print -nearmouse
+        //std::string cmd = std::string("zenity --information --text \"") + body + std::string("\" --title=\"") + title + "\"";
+        //std::string cmd = std::string("dialog --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
+        std::string cmd = std::string("whiptail --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
+        //std::string cmd = std::string("xmessage \"") + title + body + "\"";
         std::system( cmd.c_str() );
     )
     $undefined(
@@ -732,3 +807,5 @@ std::string hexdump( const void *data, size_t num_bytes, const void *self )
 #undef $linux
 #undef $win32
 
+#undef $no
+#undef $yes
