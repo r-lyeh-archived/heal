@@ -327,7 +327,7 @@ bool debugger( const std::string &reason )
             // eval-command=bt
             // -ex "bt full"
             // gdb --batch --quiet -ex "thread apply all bt full" -ex "quit" ${exe} ${corefile}
-            sys = sys + (" --tui -q -ex 'set pagination off' -ex '!rm " +tmpfile+ "' -ex 'continue' -ex 'finish' -ex 'finish' -ex 'finish' --pid=") + pid + " --args `cat /proc/" + pid + "/cmdline`";
+            sys = sys + (" --tui -q -ex 'set pagination off' -ex 'shell rm " +tmpfile+ "' -ex 'continue' -ex 'finish' -ex 'finish' -ex 'finish' --pid=") + pid + " --args `cat /proc/" + pid + "/cmdline`";
             if( has("xterm") && false ) {
                 sys = std::string("/usr/bin/xterm 2>/dev/null -maximized -e \"") + sys + "\"";
             } else {
