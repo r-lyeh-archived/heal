@@ -225,6 +225,10 @@ bool is_release() {
         }
     };
 
+    bool has( const std::string &app ) {
+        return file::exists( std::string("/usr/bin/") + app );
+    }
+
 #endif
 
 bool debugger( const std::string &reason )
@@ -248,25 +252,20 @@ bool debugger( const std::string &reason )
               return access( pathfile.c_str(), F_OK ) != -1; // _access(fn,0) on win
             }
         };
-        std::string gdb   = "/usr/bin/gdb";
-        std::string ddd   = "/usr/bin/ddd";
-        std::string xterm = "/usr/bin/xterm";
-        bool has_ddd   = false; //file::exists(ddd);
-        bool has_gdb   = file::exists(gdb);
-        bool has_xterm = file::exists(xterm);
         static std::string sys;
-        sys = ( has_ddd ? ddd : ( has_gdb ? gdb : std::string() ));
-        if( !sys.empty() ) {
+        sys = ( has("ddd") && false ? "/usr/bin/ddd" : ( has("gdb") ? "/usr/bin/gdb" : "" ));
             std::string pid = std::to_string( getpid() );
             // [ok]
             // eval-command=bt
             // -ex "bt full"
             // gdb --batch --quiet -ex "thread apply all bt full" -ex "quit" ${exe} ${corefile}
             sys = sys + (" --tui -q -ex 'set pagination off' -ex 'continue' --pid=") + pid + " --args `cat /proc/" + pid + "/cmdline`";
-            if( has_xterm ) {
-                sys = std::string("xterm 2>/dev/null -e \"") + sys + "\"";
+            if( has("xterm") ) {
+                sys = std::string("/usr/bin/xterm 2>/dev/null -e \"") + sys + "\"";
             } else {
-                // sys = std::string("bash -c \"") + sys + "\"";
+                //sys = std::string(/*"exec"*/ "/usr/bin/splitvt -upper \"") + sys + "\"";
+                //sys = std::string("/bin/bash -c \"") + sys + " && /usr/bin/reset\"";
+                sys = std::string("/bin/bash -c \"") + sys + "\"";
             }
             std::thread( system, sys.c_str() ).detach();
 #if 0
@@ -339,13 +338,13 @@ void errorbox( const std::string &body, const std::string &title ) {
         MessageBoxA( 0, body.c_str(), title.size() ? title.c_str() : "", 0 | MB_ICONERROR | MB_SYSTEMMODAL );
     )
     $linux(
-        if( file::exists("/usr/bin/whiptail") ) {
+        if( has("whiptail") ) {
             // gtkdialog3
             // xmessage -file ~/.bashrc -buttons "Ok:1, Cancel:2, Help:3" -print -nearmouse
-            //std::string cmd = std::string("zenity --information --text \"") + body + std::string("\" --title=\"") + title + "\"";
-            //std::string cmd = std::string("dialog --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
-            std::string cmd = std::string("whiptail --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
-            //std::string cmd = std::string("xmessage \"") + title + body + "\"";
+            //std::string cmd = std::string("/usr/bin/zenity --information --text \"") + body + std::string("\" --title=\"") + title + "\"";
+            //std::string cmd = std::string("/usr/bin/dialog --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
+            std::string cmd = std::string("/usr/bin/whiptail --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
+            //std::string cmd = std::string("x/usr/bin/message \"") + title + body + "\"";
             std::system( cmd.c_str() );
         } else {
             fprintf( stderr, "%s", ( title.size() > 0 ? title + ": " + body + "\n" : body + "\n" ).c_str() );
