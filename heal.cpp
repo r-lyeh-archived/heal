@@ -229,60 +229,37 @@ bool is_release() {
         return file::exists( std::string("/usr/bin/") + app );
     }
 
+    std::string pipe( const std::string &sys ) {
+        char buf[512];
+        std::string out;
+
+        FILE *fp = popen( sys.c_str(), "r" );
+        if( fp ) {
+            while( !feof(fp) ) {
+                if( fgets(buf,sizeof(buf),fp) != NULL ) {
+                    out += buf;
+                }
+            }
+            pclose(fp);
+        }
+
+        return out;
+    }
+
+    std::string pipe( const std::string &sys1, const std::string &sys2 ) {
+        pipe( sys1+sys2 );
+    }
+
 #endif
 
-bool debugger( const std::string &reason )
-{
-    if( reason.size() > 0 )
-        errorbox( reason );
-
+void breakpoint() {
 // os based
 
     $win32(
-    if( IsDebuggerPresent() )
-        DebugBreak();
+    DebugBreak();
     )
-
     $linux(
-
-        struct file {
-            static bool exists( const std::string &pathfile) {
-            /*struct stat buffer;
-              return stat( pathfile.c_str(), &buffer ) == 0; */
-              return access( pathfile.c_str(), F_OK ) != -1; // _access(fn,0) on win
-            }
-        };
-        static std::string sys;
-        sys = ( has("ddd") && false ? "/usr/bin/ddd" : ( has("gdb") ? "/usr/bin/gdb" : "" ));
-            std::string pid = std::to_string( getpid() );
-            // [ok]
-            // eval-command=bt
-            // -ex "bt full"
-            // gdb --batch --quiet -ex "thread apply all bt full" -ex "quit" ${exe} ${corefile}
-            sys = sys + (" --tui -q -ex 'set pagination off' -ex 'continue' --pid=") + pid + " --args `cat /proc/" + pid + "/cmdline`";
-            if( has("xterm") ) {
-                sys = std::string("/usr/bin/xterm 2>/dev/null -e \"") + sys + "\"";
-            } else {
-                //sys = std::string(/*"exec"*/ "/usr/bin/splitvt -upper \"") + sys + "\"";
-                //sys = std::string("/bin/bash -c \"") + sys + " && /usr/bin/reset\"";
-                sys = std::string("/bin/bash -c \"") + sys + "\"";
-            }
-            std::thread( system, sys.c_str() ).detach();
-#if 0
-            errorbox( "press a key to continue...", "invoking debugger" );
-#endif
-#if 1
-            usleep( 4 * 1000000 );
-            kill( getpid(), SIGTRAP );
-//            asm("int $0x3");
-            //breakpoint();
-#endif
-#if 0
-            pause();
-#endif
-            return true;
-        }
-
+    raise(SIGTRAP);
 //    asm("trap");
 //    asm("int3");
 //    kill( getpid(), SIGINT );
@@ -326,6 +303,47 @@ bool debugger( const std::string &reason )
     //$x86( // ifdef _M_X86
     //__asm int 3;
     //)
+}
+
+bool debugger( const std::string &reason )
+{
+    if( reason.size() > 0 )
+        errorbox( reason );
+
+// os based
+
+    $win32(
+        if( IsDebuggerPresent() )
+            return breakpoint(), true;
+    )
+
+    $linux(
+        static std::string sys, tmpfile;
+        sys = ( has("ddd") && false ? "/usr/bin/ddd" : ( has("gdb") ? "/usr/bin/gdb" : "" ));
+        tmpfile = "./heal.tmp.tmp"; //pipe("tempfile");
+        if( !sys.empty() ) {
+            std::string pid = std::to_string( getpid() );
+            // [ok]
+            // eval-command=bt
+            // -ex "bt full"
+            // gdb --batch --quiet -ex "thread apply all bt full" -ex "quit" ${exe} ${corefile}
+            sys = sys + (" --tui -q -ex 'set pagination off' -ex '!rm " +tmpfile+ "' -ex 'continue' -ex 'finish' -ex 'finish' -ex 'finish' --pid=") + pid + " --args `cat /proc/" + pid + "/cmdline`";
+            if( has("xterm") && false ) {
+                sys = std::string("/usr/bin/xterm 2>/dev/null -maximized -e \"") + sys + "\"";
+            } else {
+                //sys = std::string(/*"exec"*/ "/usr/bin/splitvt -upper \"") + sys + "\"";
+                //sys = std::string("/bin/bash -c \"") + sys + " && /usr/bin/reset\"";
+                sys = std::string("/bin/bash -c \"") + sys + "\"";
+            }
+
+        pipe( "echo heal.cpp says: waiting for debugger to catch pid > ", tmpfile );
+        std::thread( system, sys.c_str() ).detach();
+        while( file::exists(tmpfile) )
+            usleep( 250000 );
+        breakpoint();
+        return true;
+        }
+    )
 
     errorbox( "<heal/heal.cpp> says:\n\nDebugger invokation failed.\nPlease attach a debugger now.", "Error!");
     return false;
@@ -344,7 +362,7 @@ void errorbox( const std::string &body, const std::string &title ) {
             //std::string cmd = std::string("/usr/bin/zenity --information --text \"") + body + std::string("\" --title=\"") + title + "\"";
             //std::string cmd = std::string("/usr/bin/dialog --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
             std::string cmd = std::string("/usr/bin/whiptail --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
-            //std::string cmd = std::string("x/usr/bin/message \"") + title + body + "\"";
+            //std::string cmd = std::string("/usr/bin/xmessage \"") + title + body + "\"";
             std::system( cmd.c_str() );
         } else {
             fprintf( stderr, "%s", ( title.size() > 0 ? title + ": " + body + "\n" : body + "\n" ).c_str() );

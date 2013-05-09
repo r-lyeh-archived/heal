@@ -8,6 +8,7 @@
 
 void die( const std::string &reason, int errorcode = -1 );
 void die( int errorcode = -1, const std::string &reason = std::string() );
+void breakpoint();
 bool debugger( const std::string &reason = std::string() );
 void errorbox( const std::string &body = std::string(), const std::string &title = std::string() );
 

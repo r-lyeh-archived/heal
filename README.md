@@ -15,6 +15,7 @@ API
 - `assert4( a, ==, b, "a must be equal to b" )`. Any assertion fail will invoke `cb::custom_assert_cb()` callback.
 - `setup_assert(cb)` @todocument.
 - `bool debugger(string reason)` tries to invoke debugger, if possible.
+- `void breakpoint()` breaks execution, if possible.
 - `string demangle(string symbol)` returns an human-readable mangled-symbol, if possible.
 - `errorbox(string body,string title)` shows an error window.
 - `bool is_asserting()` determines if assertions are enabled or not.
