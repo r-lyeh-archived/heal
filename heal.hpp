@@ -8,12 +8,15 @@
 
 void die( const std::string &reason, int errorcode = -1 );
 void die( int errorcode = -1, const std::string &reason = std::string() );
+
 void breakpoint();
 bool debugger( const std::string &reason = std::string() );
-void errorbox( const std::string &body = std::string(), const std::string &title = std::string() );
 
-bool is_release();
+void errorbox( const std::string &body = std::string(), const std::string &title = std::string() );
+std::string prompt( const std::string &title = std::string(), const std::string &current_value = std::string(), const std::string &caption = std::string() );
+
 bool is_debug();
+bool is_release();
 bool is_asserting();
 
 class callstack
