@@ -331,7 +331,7 @@ bool debugger( const std::string &reason )
             return _breakpoint(), true;
     )
 
-//    $linux(
+    $linux(
         if( detect_gdb() ) {
             return _breakpoint(), true;
         }
@@ -362,7 +362,7 @@ bool debugger( const std::string &reason )
         _breakpoint();
         return true;
         }
-//    )
+    )
 
     errorbox( "<heal/heal.cpp> says:\n\nDebugger invokation failed.\nPlease attach a debugger now.", "Error!");
     _breakpoint();
