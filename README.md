@@ -16,6 +16,7 @@ API
 - `bool debugger(string reason)` tries to invoke debugger, if possible.
 - `void breakpoint()` breaks execution, if possible.
 - `string demangle(string symbol)` returns an human-readable mangled-symbol, if possible.
+- `alert(type value,string title)` shows a modal window.
 - `errorbox(string body,string title)` shows an error window.
 - `prompt(string title, string value, string caption)` shows a prompt window.
 - `bool is_asserting()` determines if assertions are enabled or not.
@@ -40,7 +41,7 @@ offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F [ptr=0014F844 sz=10]
 
 Sample
 ------
-```
+```c++
 #include <iostream>
 #include "heal.hpp"
 

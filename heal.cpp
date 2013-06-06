@@ -371,27 +371,57 @@ bool debugger( const std::string &reason )
 
 // ERRORBOX
 
-void errorbox( const std::string &body, const std::string &title ) {
-    $win32(
-        MessageBoxA( 0, body.c_str(), title.size() ? title.c_str() : "", 0 | MB_ICONERROR | MB_SYSTEMMODAL );
-    )
-    $linux(
-        if( has("whiptail") ) {
-            // gtkdialog3
-            // xmessage -file ~/.bashrc -buttons "Ok:1, Cancel:2, Help:3" -print -nearmouse
-            //std::string cmd = std::string("/usr/bin/zenity --information --text \"") + body + std::string("\" --title=\"") + title + "\"";
-            //std::string cmd = std::string("/usr/bin/dialog --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
-            std::string cmd = std::string("/usr/bin/whiptail --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
-            //std::string cmd = std::string("/usr/bin/xmessage \"") + title + body + "\"";
-            std::system( cmd.c_str() );
-        } else {
+namespace {
+
+    template<typename T>
+    std::string stringme( const T &t ) {
+        std::stringstream ss;
+        ss.precision( 20 );
+        ss << t;
+        return ss.str();
+    }
+
+    template<>
+    std::string stringme( const bool &boolean ) {
+        return boolean ? "true" : "false";
+    }
+
+    void show( const std::string &body = std::string(), const std::string &title = std::string(), bool is_error = false ) {
+        $win32(
+            MessageBoxA( 0, body.c_str(), title.size() ? title.c_str() : "", 0 | ( is_error ? MB_ICONERROR : 0 ) | MB_SYSTEMMODAL );
+            return;
+        )
+        $linux(
+            if( has("whiptail") ) {
+                // gtkdialog3
+                // xmessage -file ~/.bashrc -buttons "Ok:1, Cancel:2, Help:3" -print -nearmouse
+                //std::string cmd = std::string("/usr/bin/zenity --information --text \"") + body + std::string("\" --title=\"") + title + "\"";
+                //std::string cmd = std::string("/usr/bin/dialog --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
+                std::string cmd = std::string("/usr/bin/whiptail --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
+                //std::string cmd = std::string("/usr/bin/xmessage \"") + title + body + "\"";
+                std::system( cmd.c_str() );
+            } else {
+                fprintf( stderr, "%s", ( title.size() > 0 ? title + ": " + body + "\n" : body + "\n" ).c_str() );
+            }
+            return;
+        )
+        $undefined(
             fprintf( stderr, "%s", ( title.size() > 0 ? title + ": " + body + "\n" : body + "\n" ).c_str() );
-        }
-    )
-    $undefined(
-        fprintf( stderr, "%s", ( title.size() > 0 ? title + ": " + body + "\n" : body + "\n" ).c_str() );
-    )
+            return;
+        )
+    }
 }
+
+void    alert(                                                   ) { show();                        }
+void    alert( const        char *text, const std::string &title ) { show( text, title );           }
+void    alert( const std::string &text, const std::string &title ) { show( text, title );           }
+void    alert( const      size_t &text, const std::string &title ) { show( stringme(text), title ); }
+void    alert( const      double &text, const std::string &title ) { show( stringme(text), title ); }
+void    alert( const       float &text, const std::string &title ) { show( stringme(text), title ); }
+void    alert( const         int &text, const std::string &title ) { show( stringme(text), title ); }
+void    alert( const        char &text, const std::string &title ) { show( stringme(text), title ); }
+void    alert( const        bool &text, const std::string &title ) { show( stringme(text), title ); }
+void errorbox( const std::string &body, const std::string &title ) { show( body, title, true );     }
 
 // DEMANGLE
 
@@ -790,13 +820,14 @@ std::string hexdump( const void *data, size_t num_bytes, const void *self )
         }
     };
 
+	using std::max;
     unsigned maxwidth = 80;
     unsigned width = 16; //column width
     unsigned width_offset_block = (8 + 1);
     unsigned width_chars_block  = (width * 3 + 1) + sizeof("asc");
     unsigned width_hex_block    = (width * 3 + 1) + sizeof("hex");
-    unsigned width_padding = maxwidth - ( width_offset_block + width_chars_block + width_hex_block );
-    unsigned blocks = width_padding / ( width_chars_block + width_hex_block ) ;
+    unsigned width_padding = max( 0, int( maxwidth - ( width_offset_block + width_chars_block + width_hex_block ) ) );
+	unsigned blocks = width_padding / ( width_chars_block + width_hex_block ) ;
 
     unsigned dumpsize = ( num_bytes < width * 16 ? num_bytes : width * 16 ); //16 lines max
 
@@ -1191,9 +1222,6 @@ std::string prompt( const std::string &title, const std::string &current_value, 
 #   pragma warning( pop )
 #endif
 
-
-
-
 #undef $debug
 #undef $release
 #undef $other
@@ -1207,3 +1235,4 @@ std::string prompt( const std::string &title, const std::string &current_value, 
 
 #undef $no
 #undef $yes
+
