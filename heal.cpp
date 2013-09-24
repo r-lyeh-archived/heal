@@ -46,6 +46,12 @@
 #       include <Crtdbg.h>
 #   endif
 #   include <Dbghelp.h>
+#   ifdef max
+#       undef max
+#   endif
+#   ifdef min
+#       undef min
+#   endif
 #   pragma comment( lib, "dbghelp.lib" )
 #   pragma comment( lib, "kernel32.lib" )
 #   pragma comment( lib, "user32.lib" )
