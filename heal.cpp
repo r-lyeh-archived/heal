@@ -31,6 +31,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <algorithm>
 #include <iostream>
 #include <mutex>
 #include <sstream>
