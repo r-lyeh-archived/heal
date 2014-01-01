@@ -4,6 +4,8 @@
 
 int main()
 {
+    todo("I have *still* to document this library");
+
     if( !is_asserting() )
         errorbox( "Asserts are disabled. No assertions will be perfomed" );
     else

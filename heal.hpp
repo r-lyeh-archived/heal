@@ -100,6 +100,20 @@ template<> inline std::string hexdump( const char *obj ) {
     return hexdump( std::string(obj) );
 }
 
+// todo(str) macro
+#define $heal$todo$stringize$impl(X) #X
+#define $heal$todo$stringize(X) $heal$todo$stringize$impl(X)
+#if defined(_MSC_VER)
+#   define $heal$todo$message(msg) __FILE__ "(" $heal$todo$stringize(__LINE__)") : @todo - " msg " - [ "__FUNCTION__ " ]"
+#   define todo(msg) __pragma( message( $heal$todo$message(msg) ) )
+#elif defined(__GNUC__) && defined(GCC_VERSION) && GCC_VERSION >= 40400
+#   define $heal$todo$message(msg) __FILE__ "(" $heal$todo$stringize(__LINE__)") : @todo - " msg " - [ "__func__ " ]"
+#   define $heal$todo$message$impl(msg) _Pragma(#msg)
+#   define todo(msg) $heal$todo$message$impl( message( $heal$todo$message(msg) ) )
+#else
+#   define todo(msg)
+#endif
+
 void setup_assert( void (*custom_assert_cb)( const std::string &assertion, const char *at_file, int at_line ) );
 
 /* private API */

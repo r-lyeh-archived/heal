@@ -12,7 +12,8 @@ API
 - `assert2( a == b, "a must be equal to b" )`
 - `assert3( a, ==, b )`
 - `assert4( a, ==, b, "a must be equal to b" )`. Any assertion fail will invoke `cb::custom_assert_cb()` callback.
-- `setup_assert(cb)` @todocument.
+- `setup_assert(cb)` @todoc.
+- `todo(string)` @todoc.
 - `bool debugger(string reason)` tries to invoke debugger, if possible.
 - `void breakpoint()` breaks execution, if possible.
 - `string demangle(string symbol)` returns an human-readable mangled-symbol, if possible.
@@ -22,7 +23,7 @@ API
 - `bool is_asserting()` determines if assertions are enabled or not.
 - `bool is_release()` returns true if either `NDEBUG` or `_NDEBUG` preprocessor directives are defined.
 - `bool is_debug()` returns negation of `is_release()`
-- `callstack()` @todocument.
+- `callstack()` @todoc.
 - `stacktrace()` returns a vector of strings that contains full current callstack. Output can be formatted. Possible output for `std::cout << stacktrace()`:
 ```
 #0 stacktrace (heal.cpp, line 592)
