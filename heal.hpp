@@ -1,6 +1,7 @@
 #ifndef __HEALHPP__
 #define __HEALHPP__
 
+#include <iostream>
 #include <sstream>
 #include <string>
 
@@ -13,14 +14,15 @@ void breakpoint();
 bool debugger( const std::string &reason = std::string() );
 
 void alert();
-void alert( const        char *t, const std::string &title = std::string() );
-void alert( const std::string &t, const std::string &title = std::string() );
-void alert( const      size_t &t, const std::string &title = std::string() );
-void alert( const      double &t, const std::string &title = std::string() );
-void alert( const       float &t, const std::string &title = std::string() );
-void alert( const         int &t, const std::string &title = std::string() );
-void alert( const        char &t, const std::string &title = std::string() );
-void alert( const        bool &t, const std::string &title = std::string() );
+void alert( const          char *t, const std::string &title = std::string() );
+void alert( const   std::string &t, const std::string &title = std::string() );
+void alert( const std::istream &is, const std::string &title = std::string() );
+void alert( const        size_t &t, const std::string &title = std::string() );
+void alert( const        double &t, const std::string &title = std::string() );
+void alert( const         float &t, const std::string &title = std::string() );
+void alert( const           int &t, const std::string &title = std::string() );
+void alert( const          char &t, const std::string &title = std::string() );
+void alert( const          bool &t, const std::string &title = std::string() );
 void errorbox( const std::string &body = std::string(), const std::string &title = std::string() );
 std::string prompt( const std::string &title = std::string(), const std::string &current_value = std::string(), const std::string &caption = std::string() );
 

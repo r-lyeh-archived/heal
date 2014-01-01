@@ -393,6 +393,15 @@ namespace {
         return boolean ? "true" : "false";
     }
 
+    template<>
+    std::string stringme( const std::istream &is ) {
+        std::stringstream ss;
+        std::streamsize at = is.rdbuf()->pubseekoff(0,is.cur);
+        ss << is.rdbuf();
+        is.rdbuf()->pubseekpos(at);
+        return ss.str();
+    }
+
     void show( const std::string &body = std::string(), const std::string &title = std::string(), bool is_error = false ) {
         $win32(
             MessageBoxA( 0, body.c_str(), title.size() ? title.c_str() : "", 0 | ( is_error ? MB_ICONERROR : 0 ) | MB_SYSTEMMODAL );
@@ -419,16 +428,17 @@ namespace {
     }
 }
 
-void    alert(                                                   ) { show();                        }
-void    alert( const        char *text, const std::string &title ) { show( text, title );           }
-void    alert( const std::string &text, const std::string &title ) { show( text, title );           }
-void    alert( const      size_t &text, const std::string &title ) { show( stringme(text), title ); }
-void    alert( const      double &text, const std::string &title ) { show( stringme(text), title ); }
-void    alert( const       float &text, const std::string &title ) { show( stringme(text), title ); }
-void    alert( const         int &text, const std::string &title ) { show( stringme(text), title ); }
-void    alert( const        char &text, const std::string &title ) { show( stringme(text), title ); }
-void    alert( const        bool &text, const std::string &title ) { show( stringme(text), title ); }
-void errorbox( const std::string &body, const std::string &title ) { show( body, title, true );     }
+void    alert(                                                    ) { show();                        }
+void    alert( const         char *text, const std::string &title ) { show( text, title );           }
+void    alert( const  std::string &text, const std::string &title ) { show( text, title );           }
+void    alert( const std::istream &text, const std::string &title ) { show( stringme(text), title ); }
+void    alert( const       size_t &text, const std::string &title ) { show( stringme(text), title ); }
+void    alert( const       double &text, const std::string &title ) { show( stringme(text), title ); }
+void    alert( const        float &text, const std::string &title ) { show( stringme(text), title ); }
+void    alert( const          int &text, const std::string &title ) { show( stringme(text), title ); }
+void    alert( const         char &text, const std::string &title ) { show( stringme(text), title ); }
+void    alert( const         bool &text, const std::string &title ) { show( stringme(text), title ); }
+void errorbox( const  std::string &body, const std::string &title ) { show( body, title, true );     }
 
 // DEMANGLE
 

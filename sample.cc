@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include "heal.hpp"
 
 int main()
@@ -20,6 +21,7 @@ int main()
     alert( "this is a test" );
     alert( 3.14159f );
     alert( -100 );
+    alert( std::ifstream(__FILE__), "current source code" );
 
     if( !debugger("We are about to launch debugger...") )
         die( "Something went wrong: debugger() didnt work" );
