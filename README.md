@@ -3,27 +3,37 @@ heal
 
 - Heal is a lightweight C++ framework to aid and debug applications. Requires C++11.
 - Heal requires OS dependencies only.
-- Heal has full API support for Windows. Feel free to tweak heal.cpp and add more OSes :)
+- Heal has full API support for Windows, for now. Feel free to tweak heal.cpp and add more OSes :)
+- Heal pollutes namespace on purpose. Sorry but I think this is convenient.
 - MIT licensed.
+
+chain of callbacks
+------------------
 
 API
 ---
 - `assert1( a == b )`
 - `assert2( a == b, "a must be equal to b" )`
 - `assert3( a, ==, b )`
-- `assert4( a, ==, b, "a must be equal to b" )`. Any assertion fail will invoke `cb::custom_assert_cb()` callback.
-- `setup_assert(cb)` @todoc.
-- `todo(string)` @todoc.
+- `assert4( a, ==, b, "a must be equal to b" )`. Any assertion fail will invoke `fails` chain of callbacks.
+- `warn()` @todoc.
+- `fail()` @todoc.
+- `warns(cb)` @todoc.
+- `fails(cb)` @todoc.
+- `add_worker(cb)` @todoc.
+- `add_webmain(int port, cb)` @todoc.
+- `$warning(string)` @todoc.
 - `bool debugger(string reason)` tries to invoke debugger, if possible.
 - `void breakpoint()` breaks execution, if possible.
 - `string demangle(string symbol)` returns an human-readable mangled-symbol, if possible.
 - `alert(type value,string title)` shows a modal window.
 - `errorbox(string body,string title)` shows an error window.
 - `prompt(string title, string value, string caption)` shows a prompt window.
-- `bool is_asserting()` determines if assertions are enabled or not.
+- `bool is_asserting()` returns true if assertions are enabled.
 - `bool is_release()` returns true if either `NDEBUG` or `_NDEBUG` preprocessor directives are defined.
 - `bool is_debug()` returns negation of `is_release()`
 - `callstack()` @todoc.
+- `stackstring()` @todoc.
 - `stacktrace()` returns a vector of strings that contains full current callstack. Output can be formatted. Possible output for `std::cout << stacktrace()`:
 ```
 #0 stacktrace (heal.cpp, line 592)
@@ -39,6 +49,49 @@ offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F [ptr=0014F844 sz=10]
 0014F844  H  e  l  l  o  W  o  r  l  d  .  .  .  .  .  . asc
 0014F844 48 65 6c 6c 6f 57 6f 72 6c 64 ?? ?? ?? ?? ?? ?? hex
 ```
+
+- `size_t get_mem_peak_str()`
+- `size_t get_mem_current_str()`
+- `size_t get_mem_size_str()`
+- `double get_time_cpu_str()`
+- `double get_time_clock_str()`
+- `std::string get_mem_peak_str()`
+- `std::string get_mem_current_str()`
+- `std::string get_mem_size_str()`
+- `std::string get_time_cpu_str()`
+- `std::string get_time_clock_str()`
+
+```
+bool is_root();
+std::string get_app_path();
+bool add_firewall_rule( const std::string &name, bool on, const std::string &binpath );
+bool add_firewall_rule( const std::string &name, bool on, bool tcp, int port );
+std::string get_pipe( const std::string &cmd, int *retcode = 0 );
+```
+
+Macros
+------
+
+$yes
+$no
+
+$windows, $welse
+$linux, $lelse
+$apple, $aelse
+$msvc, $melse
+$gnuc, $gelse
+$clang, $celse
+$throw, $telse
+$warning
+$debug, $release
+$undefined_compiler
+
+$on
+$is
+$has
+$undefined_os
+
+$quote
 
 Sample
 ------
