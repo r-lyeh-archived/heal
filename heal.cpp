@@ -1,6 +1,6 @@
 /*
  * Heal is a lightweight C++ framework to aid and debug applications.
- * Copyright (c) 2011-2013 Mario 'rlyeh' Rodriguez
+ * Copyright (c) 2011, 2012, 2013, 2014 Mario 'rlyeh' Rodriguez
 
  * Callstack code is based on code by Magnus Norddahl (See http://goo.gl/LM5JB)
  * Mem/CPU OS code is based on code by David Robert Nadeau (See http://goo.gl/8P5Jqv)
@@ -72,6 +72,7 @@
 #   endif
 #else
 #   include <unistd.h>
+#   include <signal.h>
 #   include <sys/time.h>
 #   include <sys/types.h>
 //  --
@@ -204,7 +205,7 @@ bool is_release() {
 
 // DEBUGGER
 
-#ifdef __linux__
+#if $on($linux) || $on($apple)
 
     // enable core dumps for debug builds
     // after a crash try to do something like 'gdb ./a.out core'
@@ -267,6 +268,7 @@ void breakpoint() {
     $windows(
     DebugBreak();
     )
+    
     $linux(
     raise(SIGTRAP);
 //    asm("trap");
@@ -281,6 +283,10 @@ void breakpoint() {
     // kill( getpid(), SIGSEGV );
     // raise(SIGTRAP); //POSIX
     // raise(SIGINT);  //POSIX
+    )
+    
+    $apple(
+    raise(SIGTRAP);
     )
 
 // compiler based
@@ -335,7 +341,7 @@ bool debugger( const std::string &reason )
 
         static std::string sys, tmpfile;
         sys = ( has("ddd") && false ? "/usr/bin/ddd" : ( has("gdb") ? "/usr/bin/gdb" : "" ));
-        tmpfile = "./heal.tmp.tmp"; //pipe("tempfile");
+        tmpfile = "./heal.tmp.tmp"; //get_pipe("tempfile");
         if( !sys.empty() ) {
             std::string pid = std::to_string( getpid() );
             // [ok]
@@ -358,8 +364,8 @@ bool debugger( const std::string &reason )
                 return true;
         }
     )
-
-    errorbox( "<heal/heal.cpp> says:\n\nDebugger invokation failed.\nPlease attach a debugger now.", "Error!");
+    
+    //errorbox( "<heal/heal.cpp> says:\n\nDebugger invokation failed.\nPlease attach a debugger now.", "Error!");
     return false;
 }
 
@@ -408,10 +414,14 @@ namespace {
             }
             return;
         )
-        $undefined_os(
-            fprintf( stderr, "%s", ( title.size() > 0 ? title + ": " + body + "\n" : body + "\n" ).c_str() );
-            return;
-        )
+        // fallback
+        fprintf( stderr, "%s", ( title.size() > 0 ? title + ": " + body + "\n" : body + "\n" ).c_str() );
+
+        std::cout << "Press enter to continue..." << std::endl;
+        std::string s;
+        std::getline( std::cin, s );
+
+        return;
     }
 }
 
@@ -459,7 +469,7 @@ namespace heal
         {}
 
         template <typename T>
-        explicit string( const T &t ) : std::string()
+        /* explicit */ string( const T &t ) : std::string()
         {
             std::stringstream ss;
             if( ss << t )
@@ -501,6 +511,18 @@ namespace heal
                 pos += substr.size();
             }
             return n;
+        }
+        
+        std::string replace( const std::string &target, const std::string &replacement ) const {
+            size_t found = 0;
+            std::string s = *this;
+            
+            while( ( found = s.find( target, found ) ) != string::npos ) {
+                s.replace( found, target.length(), replacement );
+                found += replacement.length();
+            }
+            
+            return s;
         }
     };
 }
@@ -737,7 +759,7 @@ void die( const std::string &reason, int errorcode )
     FatalExit( errorcode );
     )
 
-    // standard ; thread friendly?
+    // fallback
     std::exit( errorcode );
 }
 
@@ -871,7 +893,7 @@ std::string timestamp() {
  * - rlyeh
  */
 
-#ifndef _WIN32
+#if !$on($windows)
 
 std::string prompt( const std::string &title, const std::string &current_value, const std::string &caption )
 {
@@ -902,21 +924,21 @@ std::string prompt( const std::string &title, const std::string &current_value, 
 
     return out;
 }
+
 #endif
 
 
 
-#ifdef _MSC_VER
+
+#if $on($msvc)
 #   pragma warning( push )
 #   pragma warning( disable : 4996 )
 #endif
 
-#ifdef _WIN32
-
-#pragma comment(lib,"user32.lib")
-#pragma comment(lib,"gdi32.lib")
-
-#pragma message("<heal/heal.cpp> says: dialog aware dpi fix (@todo)")
+#if $on($windows)
+#   pragma comment(lib,"user32.lib")
+#   pragma comment(lib,"gdi32.lib")
+$   warning("<heal/heal.cpp> says: dialog aware dpi fix (@todo)")
 
 std::string prompt( const std::string &title, const std::string &current_value, const std::string &caption )
 {
@@ -1324,7 +1346,11 @@ void add_webmain( int port, heal_callback_inout fn ) {
         int s = SOCKET(PF_INET, SOCK_STREAM, IPPROTO_IP);
 
         {
-            struct sockaddr_in l = {AF_INET,htons(port),{INADDR_ANY}};
+            struct sockaddr_in l;
+            memset( &l, 0, sizeof(sockaddr_in) );
+            l.sin_family = AF_INET;
+            l.sin_port = htons(port);
+            l.sin_addr.s_addr = INADDR_ANY;
             $welse(
                 int r = 1; setsockopt(s,SOL_SOCKET,SO_REUSEADDR,&r,sizeof(r));
             )
@@ -1376,10 +1402,7 @@ void add_webmain( int port, heal_callback_inout fn ) {
     } ).detach();
 }
 
-
-
-
-#ifdef _MSC_VER
+#if $on($msvc)
 #   pragma warning( pop )
 #endif
 
@@ -2637,9 +2660,7 @@ FW_ERROR_CODE WinXPSP2FireWall::SetUnicastResponsesToMulticastBroadcastDisabled(
 namespace {
     void check(const std::string &desc, unsigned code) {
         $windows(
-            if( code != FW_NOERROR )
-                std::cout << "[ERR] " << desc << "=" << code << std::endl;
-            assert( code == FW_NOERROR );
+            assert3( code, ==, FW_NOERROR );
         )
     }
     std::wstring wstr( const std::string &s ) {
@@ -2669,8 +2690,7 @@ std::string get_app_path() {
 
 bool add_firewall_rule( const std::string &name, bool on, const std::string &binpath ) {
     $windows(
-    if( !is_root() )
-    {
+    if( !is_root() ) {
         std::cout << "program requires admin rights elevation" << std::endl;
         return false;
     }
@@ -2698,12 +2718,10 @@ bool add_firewall_rule( const std::string &name, bool on, const std::string &bin
 }
 bool add_firewall_rule( const std::string &name, bool on, bool tcp, int port ) {
     $windows(
-    if( !is_root() )
-    {
+    if( !is_root() ) {
         std::cout << "program requires admin rights elevation" << std::endl;
         return false;
     }
-
     {
         CoInitialize( NULL );
 

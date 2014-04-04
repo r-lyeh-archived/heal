@@ -3,11 +3,18 @@
 #include "heal.hpp"
 
 extern std::string html_template;
-
+#include <unistd.h>
 int main()
 {
     // print this on compile time
     $warning("I *still* have to document this library");
+
+    // 
+{
+    scoped_benchmark<> b("sample");
+    new char [100*1024*1024];
+    usleep(0.5 * 1000 * 1000);
+}
 
     // print some stats
     std::cout << timestamp() << std::endl;
@@ -22,7 +29,7 @@ int main()
     // add a parallel worker
     add_worker( []( const std::string &text ) {
         static int i = 0;
-        std::cout << "\r" << "\\|/-"[ (++i) % 4 ];
+        std::cout << ( std::string("\r") + "\\|/-"[ (++i) % 4 ] ) << std::flush;
         return true;
     } );
 
@@ -67,8 +74,8 @@ int main()
     assert3( 50, <, 100 );
     assert4( 100, ==, 100, "Why not " << 100 << '?' );
 
-    if( !debugger("We are about to launch debugger...") ) {
-        die( "Something went wrong: debugger() didnt work" );
+    if( !debugger("We are about to launch debugger, if possible.") ) {
+        die( "debugger() call didnt work. Exiting..." );
     }
 
     return 0;
