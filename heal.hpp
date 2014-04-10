@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 #include <functional>
-	
+
 
 // OS utils. Here is where the fun starts... good luck
 
@@ -194,14 +194,14 @@ struct benchmark : public std::string {
     void start() {
         stopped = false;
         do { mem = get_mem_current(); } while( !mem );
-        do { time = get_time_clock(); } while( time < 0 );
+        do { time = get_time_cpu(); } while( time < 0 );
     }
 
     void stop() {
         //if( !stopped )
         {
             stopped = true;
-            double time; do { time = get_time_clock(); } while ( time < 0 );
+            double time; do { time = get_time_cpu(); } while ( time < 0 );
             double mem;  do { mem = get_mem_current(); } while ( !mem );
             this->mem = mem - this->mem;
             this->time = time - this->time;
@@ -220,11 +220,7 @@ struct benchmark : public std::string {
         return *this;
     }
 
-    template<class T>
-    T &print( T &os ) const {
-        os << name() << " = " << (mem/1024.0) << "Kb, " << (unsigned(time*100)/100.0) << "s" << std::endl;
-        return os;
-    }
+    std::ostream &print( std::ostream &os ) const;
 };
 
 template< std::ostream &OSS = std::cout >
@@ -233,7 +229,7 @@ struct scoped_benchmark : public benchmark {
     scoped_benchmark( const char *text ) : benchmark(text) {
         this->start();
     }
-    
+
     ~scoped_benchmark() {
         this->stop();
         this->print( OSS );

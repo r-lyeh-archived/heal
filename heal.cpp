@@ -268,7 +268,7 @@ void breakpoint() {
     $windows(
     DebugBreak();
     )
-    
+
     $linux(
     raise(SIGTRAP);
 //    asm("trap");
@@ -284,7 +284,7 @@ void breakpoint() {
     // raise(SIGTRAP); //POSIX
     // raise(SIGINT);  //POSIX
     )
-    
+
     $apple(
     raise(SIGTRAP);
     )
@@ -343,7 +343,7 @@ bool debugger( const std::string &reason )
         sys = ( has("ddd") && false ? "/usr/bin/ddd" : ( has("gdb") ? "/usr/bin/gdb" : "" ));
         tmpfile = "./heal.tmp.tmp"; //get_pipe("tempfile");
         if( !sys.empty() ) {
-            std::string pid = std::to_string( getpid() );
+            std::string pid = to_string( getpid() );
             // [ok]
             // eval-command=bt
             // -ex "bt full"
@@ -364,7 +364,7 @@ bool debugger( const std::string &reason )
                 return true;
         }
     )
-    
+
     //errorbox( "<heal/heal.cpp> says:\n\nDebugger invokation failed.\nPlease attach a debugger now.", "Error!");
     return false;
 }
@@ -374,20 +374,20 @@ bool debugger( const std::string &reason )
 namespace {
 
     template<typename T>
-    std::string to_string( const T &t ) {
+    std::string to_string( const T &t, int digits = 20 ) {
         std::stringstream ss;
-        ss.precision( 20 );
-        ss << t;
+        ss.precision( digits );
+        ss << std::fixed << t;
         return ss.str();
     }
 
     template<>
-    std::string to_string( const bool &boolean ) {
+    std::string to_string( const bool &boolean, int digits ) {
         return boolean ? "true" : "false";
     }
 
     template<>
-    std::string to_string( const std::istream &is ) {
+    std::string to_string( const std::istream &is, int digits ) {
         std::stringstream ss;
         std::streamsize at = is.rdbuf()->pubseekoff(0,is.cur);
         ss << is.rdbuf();
@@ -512,16 +512,16 @@ namespace heal
             }
             return n;
         }
-        
+
         std::string replace( const std::string &target, const std::string &replacement ) const {
             size_t found = 0;
             std::string s = *this;
-            
+
             while( ( found = s.find( target, found ) ) != string::npos ) {
                 s.replace( found, target.length(), replacement );
                 found += replacement.length();
             }
-            
+
             return s;
         }
     };
@@ -938,7 +938,7 @@ std::string prompt( const std::string &title, const std::string &current_value, 
 #if $on($windows)
 #   pragma comment(lib,"user32.lib")
 #   pragma comment(lib,"gdi32.lib")
-$   warning("<heal/heal.cpp> says: dialog aware dpi fix (@todo)")
+$warning("<heal/heal.cpp> says: dialog aware dpi fix (@todo)")
 
 std::string prompt( const std::string &title, const std::string &current_value, const std::string &caption )
 {
@@ -1385,9 +1385,9 @@ void add_webmain( int port, heal_callback_inout fn ) {
 
                 if( httpcode > 0 ) {
                     std::string response = out.str();
-                    std::string headers = std::string() + "HTTP/1.1 " + std::to_string(httpcode) + " OK\r\n"
+                    std::string headers = std::string() + "HTTP/1.1 " + to_string(httpcode) + " OK\r\n"
                         "Content-Type: text/html;charset=UTF-8\r\n"
-                        "Content-Length: " + std::to_string( response.size() ) + "\r\n"
+                        "Content-Length: " + to_string( response.size() ) + "\r\n"
                         "\r\n";
                     WRITE( c, headers.c_str(), headers.size() );
                     WRITE( c, response.c_str(), response.size() );
@@ -1849,20 +1849,20 @@ double get_time_clock()
 
 namespace {
     std::string human_size( size_t bytes ) {
-        /**/ if( bytes >= 1024 * 1024 * 1024 ) return std::to_string( bytes / (1024 * 1024 * 1024)) + " GB";
-        else if( bytes >=   16 * 1024 * 1024 ) return std::to_string( bytes / (       1024 * 1024)) + " MB";
-        else if( bytes >=          16 * 1024 ) return std::to_string( bytes / (              1024)) + " KB";
-        else                                   return std::to_string( bytes ) + " bytes";
+        /**/ if( bytes >= 1024 * 1024 * 1024 ) return to_string( bytes / (1024 * 1024 * 1024)) + " GB";
+        else if( bytes >=   16 * 1024 * 1024 ) return to_string( bytes / (       1024 * 1024)) + " MB";
+        else if( bytes >=          16 * 1024 ) return to_string( bytes / (              1024)) + " KB";
+        else                                   return to_string( bytes ) + " bytes";
     }
     std::string human_time( double time ) {
-        /**/ if( time >   48 * 3600 ) return std::to_string( unsigned( time / (24*3600) ) ) + " days";
-        else if( time >    120 * 60 ) return std::to_string( unsigned( time / (60*60) ) ) + " hours";
-        else if( time >=         90 ) return std::to_string( unsigned( time / 60 ) ) + " mins";
-        else if( time >= 1 || time <= 0 ) return std::to_string( time ) + " s";
+        /**/ if( time >   48 * 3600 ) return to_string( time / (24*3600), 0 ) + " days";
+        else if( time >    120 * 60 ) return to_string( time / (60*60), 0 ) + " hours";
+        else if( time >=        120 ) return to_string( time / 60, 0 ) + " mins";
+        else if( time >= 1 || time <= 0 ) return to_string( time, 2 ) + " s";
         else if( time <= 1 / 1000.f )
-            return std::to_string( ( time * 1000000 ) ) + " ns";
+            return to_string( time * 1000000, 0 ) + " ns";
         else
-            return std::to_string( ( time * 1000 ) ) + " ms";
+            return to_string( time * 1000, 0 ) + " ms";
     }
 }
 
@@ -2760,6 +2760,11 @@ std::string get_pipe( const std::string &cmd, int *retcode ) {
     }
 
     return out;
+}
+
+std::ostream &benchmark::print( std::ostream &os ) const {
+    os << name() << " = " << human_size(mem) << ", " << human_time(time) << std::endl;
+    return os;
 }
 
 #undef $check

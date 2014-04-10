@@ -3,18 +3,11 @@
 #include "heal.hpp"
 
 extern std::string html_template;
-#include <unistd.h>
+
 int main()
 {
     // print this on compile time
     $warning("I *still* have to document this library");
-
-    // 
-{
-    scoped_benchmark<> b("sample");
-    new char [100*1024*1024];
-    usleep(0.5 * 1000 * 1000);
-}
 
     // print some stats
     std::cout << timestamp() << std::endl;
@@ -26,18 +19,23 @@ int main()
         std::cout << line << std::endl;
     }
 
-    // add a parallel worker
-    add_worker( []( const std::string &text ) {
-        static int i = 0;
-        std::cout << ( std::string("\r") + "\\|/-"[ (++i) % 4 ] ) << std::flush;
-        return true;
-    } );
+    // measure scope
+    {
+        scoped_benchmark<> sb("background workers installation");
 
-    // add a web server
-    add_webmain( 8080, []( std::ostream &out, const std::string &url ) {
-        out << html_template << "webthread echo: " << url << std::endl;
-        return 200;
-    } );
+        // add a parallel worker
+        add_worker( []( const std::string &text ) {
+            static int i = 0;
+            std::cout << ( std::string("\r") + "\\|/-"[ (++i) % 4 ] ) << std::flush;
+            return true;
+        } );
+
+        // add a web server
+        add_webmain( 8080, []( std::ostream &out, const std::string &url ) {
+            out << html_template << "webthread echo: " << url << std::endl;
+            return 200;
+        } );
+    }
 
     // initialize chain of warns and fails
     // these prototypes return !=0 if they handle issue, or return 0 to delegate issue to inner ring
