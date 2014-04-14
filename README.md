@@ -1,7 +1,7 @@
 heal
 ====
 
-- Heal is a lightweight C++ framework to aid and debug applications. Requires C++11.
+- Heal is a lightweight C++ library to aid and debug applications. Requires C++11.
 - Heal requires OS dependencies only.
 - Heal has full API support for Windows, for now. Feel free to tweak heal.cpp and add more OSes :)
 - Heal pollutes namespace on purpose. Sorry but I think this is convenient.
