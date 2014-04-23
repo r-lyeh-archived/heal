@@ -1482,7 +1482,7 @@ void add_webmain( int port, heal_callback_inout fn ) {
 #include <time.h>
 
 #else
-#error "Unable to define get_time_cpu() for an unknown OS."
+#error "Unable to define get_time_thread() for an unknown OS."
 #endif
 
 
@@ -1503,7 +1503,7 @@ void add_webmain( int port, heal_callback_inout fn ) {
 #endif
 
 #else
-#error "Unable to define get_time_clock() for an unknown OS."
+#error "Unable to define get_time_os() for an unknown OS."
 #endif
 
 
@@ -1688,7 +1688,7 @@ size_t get_mem_size( )
  * Returns the amount of CPU time used by the current process,
  * in seconds, or -1.0 if an error occurred.
  */
-double get_time_cpu( )
+double get_time_thread( )
 {
 #if defined(_WIN32)
     /* Windows -------------------------------------------------- */
@@ -1776,7 +1776,7 @@ double get_time_cpu( )
  * The returned real time is only useful for computing an elapsed time
  * between two calls to this function.
  */
-double get_time_clock()
+double get_time_os()
 {
 #if defined(_WIN32)
     FILETIME tm;
@@ -1894,6 +1894,13 @@ bool _() {
 }
 const bool __ = _();*/
 
+namespace {
+    const double app_epoch = get_time_os();
+}
+double get_time_app() {
+    return get_time_os() - app_epoch;
+}
+
 std::string get_mem_peak_str() {
     return human_size( get_mem_peak() );
 }
@@ -1903,11 +1910,14 @@ std::string get_mem_current_str() {
 std::string get_mem_size_str() {
     return human_size( get_mem_size() );
 }
-std::string get_time_cpu_str() {
-    return human_time( get_time_cpu() );
+std::string get_time_thread_str() {
+    return human_time( get_time_thread() );
 }
-std::string get_time_clock_str() {
-    return human_time( get_time_clock() );
+std::string get_time_os_str() {
+    return human_time( get_time_os() );
+}
+std::string get_time_app_str() {
+    return human_time( get_time_app() );
 }
 
 #include <stdio.h>

@@ -53,13 +53,15 @@ offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F [ptr=0014F844 sz=10]
 - `size_t get_mem_peak_str()`
 - `size_t get_mem_current_str()`
 - `size_t get_mem_size_str()`
-- `double get_time_cpu_str()`
-- `double get_time_clock_str()`
+- `double get_time_thread_str()`
+- `double get_time_os_str()`
+- `double get_time_app_str()`
 - `std::string get_mem_peak_str()`
 - `std::string get_mem_current_str()`
 - `std::string get_mem_size_str()`
-- `std::string get_time_cpu_str()`
-- `std::string get_time_clock_str()`
+- `std::string get_time_thread_str()`
+- `std::string get_time_os_str()`
+- `std::string get_time_app_str()`
 
 ```
 bool is_root();

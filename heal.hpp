@@ -171,16 +171,18 @@ bool is_debug();
 bool is_release();
 bool is_asserting();
 
-size_t get_mem_peak(); // peak of resident set size (physical memory use) measured in bytes, or zero
-size_t get_mem_current(); // curent set size (physical memory use) measured in bytes, or zero
-size_t get_mem_size(); // size of physical memory (RAM) in bytes
-double get_time_cpu(); // amount of CPU time used by the current process, in seconds, or -1.0
-double get_time_clock(); // real time, in seconds, or -1.0
-std::string get_mem_peak_str();    // peak of resident set size (physical memory use) measured in bytes, or zero
-std::string get_mem_current_str(); // curent set size (physical memory use) measured in bytes, or zero
-std::string get_mem_size_str();    // size of physical memory (RAM) in bytes
-std::string get_time_cpu_str();    // amount of CPU time used by the current process, in seconds, or -1.0
-std::string get_time_clock_str();  // real time, in seconds, or -1.0
+size_t get_mem_peak();             // peak of resident set size (physical memory use) measured in bytes, or zero
+size_t get_mem_current();          // curent set size (physical memory use) measured in bytes, or zero
+size_t get_mem_size();             // size of physical memory (RAM) in bytes
+double get_time_thread();          // amount of CPU time used by the current process, in seconds, or -1.0
+double get_time_os();              // real OS time, in seconds, or -1.0
+double get_time_app();             // app time, in seconds, or -1.0
+std::string get_mem_peak_str();    // peak of resident set size (physical memory use), in human metrics
+std::string get_mem_current_str(); // curent set size (physical memory use), in human metrics
+std::string get_mem_size_str();    // size of physical memory (RAM, in human metrics
+std::string get_time_thread_str(); // amount of CPU time used by the current process, in human metrics
+std::string get_time_os_str();     // real OS time, in human metrics
+std::string get_time_app_str();    // app time, in human metrics
 
 struct benchmark : public std::string {
     double mem;
@@ -194,14 +196,14 @@ struct benchmark : public std::string {
     void start() {
         stopped = false;
         do { mem = get_mem_current(); } while( !mem );
-        do { time = get_time_cpu(); } while( time < 0 );
+        do { time = get_time_app(); } while( time < 0 );
     }
 
     void stop() {
         //if( !stopped )
         {
             stopped = true;
-            double time; do { time = get_time_cpu(); } while ( time < 0 );
+            double time; do { time = get_time_app(); } while ( time < 0 );
             double mem;  do { mem = get_mem_current(); } while ( !mem );
             this->mem = mem - this->mem;
             this->time = time - this->time;
@@ -236,27 +238,24 @@ struct scoped_benchmark : public benchmark {
     }
 };
 
+struct callstack /* : public std::vector<const void*> */ {
+    enum { max_frames = 128 };
+    std::vector<void *> frames;
+    callstack( bool autosave = false );
+    size_t space() const;
+    void save( unsigned frames_to_skip = 0 );
+    std::vector<std::string> unwind( unsigned from = 0, unsigned to = ~0 ) const;
+    std::vector<std::string> str( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 );
+};
 
-    //std::vector<const void*> callstack();
-
-    struct callstack {
-        enum { max_frames = 128 };
-        std::vector<void *> frames;
-        callstack( bool autosave = false );
-        size_t space() const;
-        void save( unsigned frames_to_skip = 0 );
-        std::vector<std::string> unwind( unsigned from = 0, unsigned to = ~0 ) const;
-        std::vector<std::string> str( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 );
-    };
-
-    template<typename T>
-    static inline
-    std::string lookup( T *ptr ) {
-        callstack cs;
-        cs.frames.push_back( (void *)ptr );
-        std::vector<std::string> stacktrace = cs.unwind();
-        return stacktrace.size() ? stacktrace[0] : std::string("????");
-    }
+template<typename T>
+static inline
+std::string lookup( T *ptr ) {
+    callstack cs;
+    cs.frames.push_back( (void *)ptr );
+    std::vector<std::string> stacktrace = cs.unwind();
+    return stacktrace.size() ? stacktrace[0] : std::string("????");
+}
 
 std::string demangle( const std::string &mangled );
 std::vector<std::string> stacktrace( const char *format12 = "#\1 \2\n", size_t skip_initial = 0 );
