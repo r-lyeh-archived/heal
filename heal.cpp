@@ -136,10 +136,11 @@ std::vector< heal_callback_in > workers( {
         return true;
 } } );
 
-std::vector< heal_callback_inout > servers( {
+std::vector< heal_http_callback > servers( {
     // default fallback
-    []( std::ostream &os, const std::string &assertion ) {
-        os << "default fallback" << std::endl;
+    []( std::ostream &headers, std::ostream &content, const std::string &assertion ) {
+        headers << "Content-Type: text/html;charset=UTF-8\r\n";
+        content << "default fallback" << std::endl;
         return 200;
 } } );
 
@@ -1337,7 +1338,7 @@ void add_worker( heal_callback_in fn ) {
     workers.push_back( fn );
 }
 
-void add_webmain( int port, heal_callback_inout fn ) {
+void add_webmain( int port, heal_http_callback fn ) {
 
     add_firewall_rule( "webmain (HEAL library)", true, true, port );
 
@@ -1380,16 +1381,19 @@ void add_webmain( int port, heal_callback_inout fn ) {
                 std::string url( &b[4] ); //skip "GET "
                 b[h[1]] = org;
 
-                std::stringstream out;
-                int httpcode = fn( out, url );
+                std::stringstream headers, content;
+                int httpcode = fn( headers, content, url );
 
                 if( httpcode > 0 ) {
-                    std::string response = out.str();
-                    std::string headers = std::string() + "HTTP/1.1 " + to_string(httpcode) + " OK\r\n"
-                        "Content-Type: text/html;charset=UTF-8\r\n"
-                        "Content-Length: " + to_string( response.size() ) + "\r\n"
-                        "\r\n";
-                    WRITE( c, headers.c_str(), headers.size() );
+                    std::string head = std::string() + "HTTP/1.1 " + to_string(httpcode) + " OK\r\n";
+                    std::string header = headers.str();
+                    std::string response = content.str();
+
+                    header += "Content-Length: " + to_string( response.size() ) + "\r\n" +
+                              "\r\n";
+
+                    WRITE( c, head.c_str(), head.size() );
+                    WRITE( c, header.c_str(), header.size() );
                     WRITE( c, response.c_str(), response.size() );
                 } else {
                     WRITE( c, "{}", 2 );
