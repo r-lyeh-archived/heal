@@ -1,11 +1,51 @@
 #include <iostream>
 #include <fstream>
+
 #include "heal.hpp"
+#include "heal2.hpp"
 
 extern std::string html_template;
 
 int main()
 {
+    if( !is_app_instanced() )
+    {
+        respawn_app();
+
+        std::cout << get_app_name() << ": im a parent and spawned a child. enter to continue..." << std::endl;
+        std::string s;
+        std::getline( std::cin, s );
+    }
+    else
+    {
+        std::cout << get_app_name() << ": im a child and im exiting..." << std::endl;
+        close_app();
+    }
+
+    // app showcase
+    std::cout << load_dialog() << std::endl;
+
+    // confirm
+    if( confirm( "Are you sure?", "Question") )
+        std::cout << "yes!" << std::endl;
+    else
+        std::cout << "nop!" << std::endl;
+
+    assert1(  confirm( "Is this window visible?", "Test" ) );
+//  assert1( !confirm( "Has this window title?" ) );
+
+    // clipboard
+    std::string saved = get_clipboard();
+    std::cout << "Saved clipboard text: '" << get_clipboard() << "'" << std::endl;
+
+    set_clipboard("hello world");
+    std::cout << "Current clipboard text: '" << get_clipboard() << "'" << std::endl;
+
+    assert1( get_clipboard() == "hello world" );
+
+    set_clipboard(saved);
+    std::cout << "Restored clipboard text: '" << get_clipboard() << "'" << std::endl;
+
     // print this on compile time
     $warning("I *still* have to document this library");
 
@@ -48,6 +88,9 @@ int main()
         } );
     }
 
+    // browser server url
+    browse( "http://localhost:8080" );
+
     // initialize chain of warns and fails
     // these prototypes return !=0 if they handle issue, or return 0 to delegate issue to inner ring
     warns.push_back( []( const std::string &text ) {
@@ -87,6 +130,7 @@ int main()
         die( "debugger() call didnt work. Exiting..." );
     }
 
+    std::cout << "All ok." << std::endl;
     return 0;
 }
 
