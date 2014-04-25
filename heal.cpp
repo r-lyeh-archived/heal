@@ -136,10 +136,11 @@ std::vector< heal_callback_in > workers( {
         return true;
 } } );
 
-std::vector< heal_callback_inout > servers( {
+std::vector< heal_http_callback > servers( {
     // default fallback
-    []( std::ostream &os, const std::string &assertion ) {
-        os << "default fallback" << std::endl;
+    []( std::ostream &headers, std::ostream &content, const std::string &assertion ) {
+        headers << "Content-Type: text/html;charset=UTF-8\r\n";
+        content << "default fallback" << std::endl;
         return 200;
 } } );
 
@@ -268,7 +269,7 @@ void breakpoint() {
     $windows(
     DebugBreak();
     )
-    
+
     $linux(
     raise(SIGTRAP);
 //    asm("trap");
@@ -284,7 +285,7 @@ void breakpoint() {
     // raise(SIGTRAP); //POSIX
     // raise(SIGINT);  //POSIX
     )
-    
+
     $apple(
     raise(SIGTRAP);
     )
@@ -343,7 +344,7 @@ bool debugger( const std::string &reason )
         sys = ( has("ddd") && false ? "/usr/bin/ddd" : ( has("gdb") ? "/usr/bin/gdb" : "" ));
         tmpfile = "./heal.tmp.tmp"; //get_pipe("tempfile");
         if( !sys.empty() ) {
-            std::string pid = std::to_string( getpid() );
+            std::string pid = to_string( getpid() );
             // [ok]
             // eval-command=bt
             // -ex "bt full"
@@ -364,7 +365,7 @@ bool debugger( const std::string &reason )
                 return true;
         }
     )
-    
+
     //errorbox( "<heal/heal.cpp> says:\n\nDebugger invokation failed.\nPlease attach a debugger now.", "Error!");
     return false;
 }
@@ -374,20 +375,20 @@ bool debugger( const std::string &reason )
 namespace {
 
     template<typename T>
-    std::string to_string( const T &t ) {
+    std::string to_string( const T &t, int digits = 20 ) {
         std::stringstream ss;
-        ss.precision( 20 );
-        ss << t;
+        ss.precision( digits );
+        ss << std::fixed << t;
         return ss.str();
     }
 
     template<>
-    std::string to_string( const bool &boolean ) {
+    std::string to_string( const bool &boolean, int digits ) {
         return boolean ? "true" : "false";
     }
 
     template<>
-    std::string to_string( const std::istream &is ) {
+    std::string to_string( const std::istream &is, int digits ) {
         std::stringstream ss;
         std::streamsize at = is.rdbuf()->pubseekoff(0,is.cur);
         ss << is.rdbuf();
@@ -512,16 +513,16 @@ namespace heal
             }
             return n;
         }
-        
+
         std::string replace( const std::string &target, const std::string &replacement ) const {
             size_t found = 0;
             std::string s = *this;
-            
+
             while( ( found = s.find( target, found ) ) != string::npos ) {
                 s.replace( found, target.length(), replacement );
                 found += replacement.length();
             }
-            
+
             return s;
         }
     };
@@ -938,7 +939,7 @@ std::string prompt( const std::string &title, const std::string &current_value, 
 #if $on($windows)
 #   pragma comment(lib,"user32.lib")
 #   pragma comment(lib,"gdi32.lib")
-$   warning("<heal/heal.cpp> says: dialog aware dpi fix (@todo)")
+$warning("<heal/heal.cpp> says: dialog aware dpi fix (@todo)")
 
 std::string prompt( const std::string &title, const std::string &current_value, const std::string &caption )
 {
@@ -1337,7 +1338,7 @@ void add_worker( heal_callback_in fn ) {
     workers.push_back( fn );
 }
 
-void add_webmain( int port, heal_callback_inout fn ) {
+void add_webmain( int port, heal_http_callback fn ) {
 
     add_firewall_rule( "webmain (HEAL library)", true, true, port );
 
@@ -1380,16 +1381,19 @@ void add_webmain( int port, heal_callback_inout fn ) {
                 std::string url( &b[4] ); //skip "GET "
                 b[h[1]] = org;
 
-                std::stringstream out;
-                int httpcode = fn( out, url );
+                std::stringstream headers, content;
+                int httpcode = fn( headers, content, url );
 
                 if( httpcode > 0 ) {
-                    std::string response = out.str();
-                    std::string headers = std::string() + "HTTP/1.1 " + std::to_string(httpcode) + " OK\r\n"
-                        "Content-Type: text/html;charset=UTF-8\r\n"
-                        "Content-Length: " + std::to_string( response.size() ) + "\r\n"
-                        "\r\n";
-                    WRITE( c, headers.c_str(), headers.size() );
+                    std::string head = std::string() + "HTTP/1.1 " + to_string(httpcode) + " OK\r\n";
+                    std::string header = headers.str();
+                    std::string response = content.str();
+
+                    header += "Content-Length: " + to_string( response.size() ) + "\r\n" +
+                              "\r\n";
+
+                    WRITE( c, head.c_str(), head.size() );
+                    WRITE( c, header.c_str(), header.size() );
                     WRITE( c, response.c_str(), response.size() );
                 } else {
                     WRITE( c, "{}", 2 );
@@ -1482,7 +1486,7 @@ void add_webmain( int port, heal_callback_inout fn ) {
 #include <time.h>
 
 #else
-#error "Unable to define get_time_cpu() for an unknown OS."
+#error "Unable to define get_time_thread() for an unknown OS."
 #endif
 
 
@@ -1503,7 +1507,7 @@ void add_webmain( int port, heal_callback_inout fn ) {
 #endif
 
 #else
-#error "Unable to define get_time_clock() for an unknown OS."
+#error "Unable to define get_time_os() for an unknown OS."
 #endif
 
 
@@ -1688,7 +1692,7 @@ size_t get_mem_size( )
  * Returns the amount of CPU time used by the current process,
  * in seconds, or -1.0 if an error occurred.
  */
-double get_time_cpu( )
+double get_time_thread( )
 {
 #if defined(_WIN32)
     /* Windows -------------------------------------------------- */
@@ -1776,7 +1780,7 @@ double get_time_cpu( )
  * The returned real time is only useful for computing an elapsed time
  * between two calls to this function.
  */
-double get_time_clock()
+double get_time_os()
 {
 #if defined(_WIN32)
     FILETIME tm;
@@ -1849,20 +1853,20 @@ double get_time_clock()
 
 namespace {
     std::string human_size( size_t bytes ) {
-        /**/ if( bytes >= 1024 * 1024 * 1024 ) return std::to_string( bytes / (1024 * 1024 * 1024)) + " GB";
-        else if( bytes >=   16 * 1024 * 1024 ) return std::to_string( bytes / (       1024 * 1024)) + " MB";
-        else if( bytes >=          16 * 1024 ) return std::to_string( bytes / (              1024)) + " KB";
-        else                                   return std::to_string( bytes ) + " bytes";
+        /**/ if( bytes >= 1024 * 1024 * 1024 ) return to_string( bytes / (1024 * 1024 * 1024)) + " GB";
+        else if( bytes >=   16 * 1024 * 1024 ) return to_string( bytes / (       1024 * 1024)) + " MB";
+        else if( bytes >=          16 * 1024 ) return to_string( bytes / (              1024)) + " KB";
+        else                                   return to_string( bytes ) + " bytes";
     }
     std::string human_time( double time ) {
-        /**/ if( time >   48 * 3600 ) return std::to_string( unsigned( time / (24*3600) ) ) + " days";
-        else if( time >    120 * 60 ) return std::to_string( unsigned( time / (60*60) ) ) + " hours";
-        else if( time >=         90 ) return std::to_string( unsigned( time / 60 ) ) + " mins";
-        else if( time >= 1 || time <= 0 ) return std::to_string( time ) + " s";
+        /**/ if( time >   48 * 3600 ) return to_string( time / (24*3600), 0 ) + " days";
+        else if( time >    120 * 60 ) return to_string( time / (60*60), 0 ) + " hours";
+        else if( time >=        120 ) return to_string( time / 60, 0 ) + " mins";
+        else if( time >= 1 || time <= 0 ) return to_string( time, 2 ) + " s";
         else if( time <= 1 / 1000.f )
-            return std::to_string( ( time * 1000000 ) ) + " ns";
+            return to_string( time * 1000000, 0 ) + " ns";
         else
-            return std::to_string( ( time * 1000 ) ) + " ms";
+            return to_string( time * 1000, 0 ) + " ms";
     }
 }
 
@@ -1894,6 +1898,13 @@ bool _() {
 }
 const bool __ = _();*/
 
+namespace {
+    const double app_epoch = get_time_os();
+}
+double get_time_app() {
+    return get_time_os() - app_epoch;
+}
+
 std::string get_mem_peak_str() {
     return human_size( get_mem_peak() );
 }
@@ -1903,11 +1914,14 @@ std::string get_mem_current_str() {
 std::string get_mem_size_str() {
     return human_size( get_mem_size() );
 }
-std::string get_time_cpu_str() {
-    return human_time( get_time_cpu() );
+std::string get_time_thread_str() {
+    return human_time( get_time_thread() );
 }
-std::string get_time_clock_str() {
-    return human_time( get_time_clock() );
+std::string get_time_os_str() {
+    return human_time( get_time_os() );
+}
+std::string get_time_app_str() {
+    return human_time( get_time_app() );
 }
 
 #include <stdio.h>
@@ -2760,6 +2774,11 @@ std::string get_pipe( const std::string &cmd, int *retcode ) {
     }
 
     return out;
+}
+
+std::ostream &benchmark::print( std::ostream &os ) const {
+    os << name() << " = " << human_size(mem) << ", " << human_time(time) << std::endl;
+    return os;
 }
 
 #undef $check
