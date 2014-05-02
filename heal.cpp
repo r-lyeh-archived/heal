@@ -48,7 +48,9 @@
 
 #include <algorithm>
 #include <iostream>
+#include <map>
 #include <mutex>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -344,7 +346,7 @@ bool debugger( const std::string &reason )
         sys = ( has("ddd") && false ? "/usr/bin/ddd" : ( has("gdb") ? "/usr/bin/gdb" : "" ));
         tmpfile = "./heal.tmp.tmp"; //get_pipe("tempfile");
         if( !sys.empty() ) {
-            std::string pid = to_string( getpid() );
+            std::string pid = std::to_string( getpid() );
             // [ok]
             // eval-command=bt
             // -ex "bt full"
@@ -478,7 +480,7 @@ namespace heal
         }
 
         template <typename T1, typename T2 = std::string, typename T3 = std::string>
-        explicit string( const char *fmt12, const T1 &_t1, const T2 &_t2 = T2(), const T3 &_t3 = T3() ) : std::string()
+        explicit string( const char *fmt123, const T1 &_t1, const T2 &_t2 = T2(), const T3 &_t3 = T3() ) : std::string()
         {
             string t1( _t1 );
             string t2( _t2 );
@@ -486,20 +488,20 @@ namespace heal
 
             string &s = *this;
 
-            while( *fmt12 )
+            while( *fmt123 )
             {
-                if( *fmt12 == '\1' )
+                if( *fmt123 == '\1' )
                     s += t1;
                 else
-                if( *fmt12 == '\2' )
+                if( *fmt123 == '\2' )
                     s += t2;
                 else
-                if( *fmt12 == '\3' )
+                if( *fmt123 == '\3' )
                     s += t3;
                 else
-                    s += *fmt12;
+                    s += *fmt123;
 
-                fmt12++;
+                fmt123++;
             }
         }
 
@@ -2779,6 +2781,30 @@ std::string get_pipe( const std::string &cmd, int *retcode ) {
 std::ostream &benchmark::print( std::ostream &os ) const {
     os << name() << " = " << human_size(mem) << ", " << human_time(time) << std::endl;
     return os;
+}
+
+void sleep( double seconds ) {
+    $windows( Sleep( seconds * 1000 ) );
+    $welse( usleep( seconds * 1000000 ) );
+}
+
+void tick() {
+    $windows( Sleep(1) );
+    $welse( usleep(1) );
+}
+
+std::string top100() {
+    std::stringstream out;
+    std::set< benchmark > set;
+    for( auto &it : benchmark::all() ) {
+        set.insert( it.second );
+    }
+    auto it = set.rbegin();
+    for( unsigned counter = ( set.size() < 100 ? set.size() : 100 ); counter--; ) {
+        it->print( out );
+        ++it;
+    }
+    return out.str();
 }
 
 #undef $check

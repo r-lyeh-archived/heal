@@ -200,7 +200,7 @@ HRESULT CALLBACK TDCallback (
     }
 }
 
-int main( int argc, const char **argv )
+int main2()
 {
     int nButtonPressed                  = 0;
     TASKDIALOGCONFIG config             = {0};
@@ -254,3 +254,7 @@ int main( int argc, const char **argv )
     return 0;
 }
 
+int main() {
+    main1();
+    main2();
+}
