@@ -56,20 +56,9 @@ offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F [ptr=0014F844 sz=10]
 - `double get_time_thread_str()`
 - `double get_time_os_str()`
 - `double get_time_app_str()`
-- `std::string get_mem_peak_str()`
-- `std::string get_mem_current_str()`
-- `std::string get_mem_size_str()`
-- `std::string get_time_thread_str()`
-- `std::string get_time_os_str()`
-- `std::string get_time_app_str()`
-
-```
-bool is_root();
-std::string get_app_path();
-bool add_firewall_rule( const std::string &name, bool on, const std::string &binpath );
-bool add_firewall_rule( const std::string &name, bool on, bool tcp, int port );
-std::string get_pipe( const std::string &cmd, int *retcode = 0 );
-```
+- `std::string as_human_size(double space)`
+- `std::string as_human_chrono(double time)`
+- `std::string as_human_calendar(double time)`
 
 Macros
 ------
@@ -94,6 +83,10 @@ $has
 $undefined_os
 
 $quote
+
+$comment
+$uncomment
+
 
 Sample
 ------

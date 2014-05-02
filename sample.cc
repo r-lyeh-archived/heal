@@ -1,18 +1,33 @@
 #include <iostream>
 #include <fstream>
+
 #include "heal.hpp"
 
+// print this on compile time
+$warning("I *still* have to document this library");
+
+// benchmark before main()
+void recursive_delay( int counter ) {
+    scoped_benchmark<> sb("recursive_delay");
+    if( counter-- ) {
+        sleep( rand() / double(RAND_MAX) );
+        recursive_delay( counter );
+    }
+}
+const bool bench_before_main = (recursive_delay(3), true);
+
+// html template for web server
 extern std::string html_template;
 
 int main()
 {
-    // print this on compile time
-    $warning("I *still* have to document this library");
+    // benchmark results
+    std::cout << top100() << std::endl;
 
     // print some stats
     std::cout << timestamp() << std::endl;
     std::cout << ( is_debug() ? "Debug build" : "Release build" ) << std::endl;
-    std::cout << "Using " << get_mem_current_str() << '/' << get_mem_size_str() << std::endl;
+    std::cout << "Using " << as_human_size( get_mem_current() ) << '/' << as_human_size( get_mem_size() ) << std::endl;
 
     // print current stack trace
     for( auto &line : stacktrace("\1) \2") ) {
@@ -87,6 +102,7 @@ int main()
         die( "debugger() call didnt work. Exiting..." );
     }
 
+    std::cout << "All ok." << std::endl;
     return 0;
 }
 
