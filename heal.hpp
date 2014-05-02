@@ -13,12 +13,14 @@
 
 // OS utils. Here is where the fun starts... good luck
 
-#define $quote(...)   #__VA_ARGS__
+#define $quote(...)     #__VA_ARGS__
+#define $comment(...)   $no
+#define $uncomment(...) $yes
 
 #define $yes(...)     __VA_ARGS__
 #define $no(...)
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #   define $windows   $yes
 #   define $welse     $no
 #else
@@ -168,12 +170,10 @@ size_t get_mem_size();             // size of physical memory (RAM) in bytes
 double get_time_thread();          // amount of CPU time used by the current process, in seconds, or -1.0
 double get_time_os();              // real OS time, in seconds, or -1.0
 double get_time_app();             // app time, in seconds, or -1.0
-std::string get_mem_peak_str();    // peak of resident set size (physical memory use), in human metrics
-std::string get_mem_current_str(); // curent set size (physical memory use), in human metrics
-std::string get_mem_size_str();    // size of physical memory (RAM, in human metrics
-std::string get_time_thread_str(); // amount of CPU time used by the current process, in human metrics
-std::string get_time_os_str();     // real OS time, in human metrics
-std::string get_time_app_str();    // app time, in human metrics
+
+std::string as_human_size( size_t bytes );
+std::string as_human_time( double time );
+std::string as_human_chrono( double time );
 
 struct benchmark : public std::string {
     double mem = 0;

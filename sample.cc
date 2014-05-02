@@ -19,15 +19,15 @@ const bool bench_before_main = (recursive_delay(3), true);
 // html template for web server
 extern std::string html_template;
 
-
 int main()
 {
+    // benchmark results
     std::cout << top100() << std::endl;
 
     // print some stats
     std::cout << timestamp() << std::endl;
     std::cout << ( is_debug() ? "Debug build" : "Release build" ) << std::endl;
-    std::cout << "Using " << get_mem_current_str() << '/' << get_mem_size_str() << std::endl;
+    std::cout << "Using " << as_human_size( get_mem_current() ) << '/' << as_human_size( get_mem_size() ) << std::endl;
 
     // print current stack trace
     for( auto &line : stacktrace("\1) \2") ) {

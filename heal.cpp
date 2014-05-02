@@ -59,10 +59,23 @@
 
 // System headers
 
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef _WIN32
+//#   define UNICODE
+//#   define _UNICODE
 #   include <winsock2.h>
 #   include <ws2tcpip.h>
-#   include <Windows.h>
+#   include <windows.h>
+#   include <commctrl.h>
+#   pragma comment(lib, "comctl32.lib")
+#   if defined _M_IX86
+#       pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#   elif defined _M_IA64
+#       pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='ia64' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#   elif defined _M_X64
+#       pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#   else
+#       pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#   endif
 #   // unwinding
 #   if defined(DEBUG) || defined(_DEBUG)
 #       include <CrtDbg.h>
@@ -71,6 +84,9 @@
 #   pragma comment(lib, "dbghelp.lib")
 #   if defined(__GNUC__)
 #       undef __GNUC__                         // switch MingW users here from $gnuc() to $windows()
+#   endif
+#   ifndef TD_SHIELD_ICON
+#       define TD_SHIELD_ICON          MAKEINTRESOURCEW(-4)
 #   endif
 #else
 #   include <unistd.h>
@@ -88,6 +104,7 @@
 //  --
 #   include <cxxabi.h>
 #endif
+
 
 // API
 
@@ -398,33 +415,42 @@ namespace {
         return ss.str();
     }
 
-    void show( const std::string &body = std::string(), const std::string &title = std::string(), bool is_error = false ) {
+    void show( const std::string &body = std::string(), const std::string &head = std::string(), const std::string &title = std::string(), bool is_error = false ) {
+        std::string headtitle = ( head.size() > 0 ? head + ": " + title : title );
+        std::string headtitlebody = ( headtitle.size() > 0 ? headtitle + ": " + body : body );
         $windows(
-            MessageBoxA( 0, body.c_str(), title.size() ? title.c_str() : "", 0 | ( is_error ? MB_ICONERROR : 0 ) | MB_SYSTEMMODAL );
+            $no(
+            int nButton;
+            auto icon = is_error ? TD_ERROR_ICON : TD_WARNING_ICON;
+            // TD_INFORMATION_ICON, TD_SHIELD_ICON
+            std::wstring wbody( body.begin(), body.end() );
+            std::wstring whead( head.begin(), head.end() );
+            std::wstring wtitle( title.begin(), title.end() );
+            HWND hWnd = ::GetActiveWindow(); // force modal
+            TaskDialog(hWnd, NULL, wtitle.c_str(), whead.c_str(), wbody.c_str(), TDCBF_OK_BUTTON, icon, &nButton );
+            )
+            $yes(
+            MessageBoxA( 0, body.c_str(), head.size() ? head.c_str() : "", 0 | ( is_error ? MB_ICONERROR : 0 ) | MB_SYSTEMMODAL );
+            )
             return;
         )
         $linux(
             if( has("whiptail") ) {
                 // gtkdialog3
                 // xmessage -file ~/.bashrc -buttons "Ok:1, Cancel:2, Help:3" -print -nearmouse
-                //std::string cmd = std::string("/usr/bin/zenity --information --text \"") + body + std::string("\" --title=\"") + title + "\"";
-                //std::string cmd = std::string("/usr/bin/dialog --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
-                std::string cmd = std::string("/usr/bin/whiptail --title \"") + title + std::string("\" --msgbox \"") + body + "\" 0 0";
-                //std::string cmd = std::string("/usr/bin/xmessage \"") + title + body + "\"";
+                //std::string cmd = std::string("/usr/bin/zenity --information --text \"") + body + std::string("\" --title=\"") + headtitle + "\"";
+                //std::string cmd = std::string("/usr/bin/dialog --title \"") + headtitle + std::string("\" --msgbox \"") + body + "\" 0 0";
+                std::string cmd = std::string("/usr/bin/whiptail --title \"") + headtitle + std::string("\" --msgbox \"") + body + "\" 0 0";
+                //std::string cmd = std::string("/usr/bin/xmessage \"") + headtitle + body + "\"";
                 std::system( cmd.c_str() );
-            } else {
-                fprintf( stderr, "%s", ( title.size() > 0 ? title + ": " + body + "\n" : body + "\n" ).c_str() );
+                return;
             }
-            return;
         )
         // fallback
-        fprintf( stderr, "%s", ( title.size() > 0 ? title + ": " + body + "\n" : body + "\n" ).c_str() );
-
-        std::cout << "Press enter to continue..." << std::endl;
         std::string s;
+        fprintf( stderr, "%s\n", headtitlebody.c_str() );
+        std::cout << "Press enter to continue..." << std::endl;
         std::getline( std::cin, s );
-
-        return;
     }
 }
 
@@ -438,7 +464,7 @@ void    alert( const        float &text, const std::string &title ) { show( to_s
 void    alert( const          int &text, const std::string &title ) { show( to_string(text), title ); }
 void    alert( const         char &text, const std::string &title ) { show( to_string(text), title ); }
 void    alert( const         bool &text, const std::string &title ) { show( to_string(text), title ); }
-void errorbox( const  std::string &body, const std::string &title ) { show( body, title, true );     }
+void errorbox( const  std::string &body, const std::string &title ) { show( body, title, "", true );  }
 
 // DEMANGLE
 
@@ -975,7 +1001,7 @@ std::string prompt( const std::string &title, const std::string &current_value, 
 
         public:
 
-#       define CIB_CLASS_NAME "CInputBoxA"
+#       define CIB_CLASS_NAME   "CInputBoxA"
 
         static LRESULT CALLBACK CIB_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         {
@@ -1021,10 +1047,10 @@ std::string prompt( const std::string &title, const std::string &current_value, 
             bResult(false),
             hThisInstance(0)
         {
-            WNDCLASSEX wndInputBox;
+            WNDCLASSEXA wndInputBox;
             RECT rect;
 
-            memset(&wndInputBox, 0, sizeof(WNDCLASSEX));
+            memset(&wndInputBox, 0, sizeof(WNDCLASSEXA));
 
             hThisInstance = hInst;
 
@@ -1041,14 +1067,14 @@ std::string prompt( const std::string &title, const std::string &current_value, 
             wndInputBox.hCursor                 = LoadCursor(NULL, IDC_ARROW);
             wndInputBox.hbrBackground           = (HBRUSH)(COLOR_WINDOW);
 
-            RegisterClassEx(&wndInputBox);
+            RegisterClassExA(&wndInputBox);
 
             if (hwndParent)
                 GetWindowRect(hwndParent, &rect); //always false?
             else
                 GetWindowRect(GetDesktopWindow(), &rect);
 
-            hwndInputBox = CreateWindow(    CIB_CLASS_NAME, "",
+            hwndInputBox = CreateWindowA( CIB_CLASS_NAME, "",
                             (WS_BORDER | WS_CAPTION), rect.left+(rect.right-rect.left-CIB_WIDTH)/2,
                             rect.top+(rect.bottom-rect.top-CIB_HEIGHT)/2,
                             CIB_WIDTH, CIB_HEIGHT, hwndParent, NULL,
@@ -1063,7 +1089,7 @@ std::string prompt( const std::string &title, const std::string &current_value, 
 
         ~InputBox()
         {
-            UnregisterClass(CIB_CLASS_NAME, hThisInstance);
+            UnregisterClassA(CIB_CLASS_NAME, hThisInstance);
         }
 
         void submit()
@@ -1114,20 +1140,20 @@ std::string prompt( const std::string &title, const std::string &current_value, 
             }
 
             //  SetWindowPos(hwndInputBox, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-            hwndQuery = CreateWindow("Static", "", WS_CHILD | WS_VISIBLE,
+            hwndQuery = CreateWindowA("Static", "", WS_CHILD | WS_VISIBLE,
                                     CIB_LEFT_OFFSET, CIB_TOP_OFFSET,
                                     CIB_WIDTH-CIB_LEFT_OFFSET*2, CIB_BTN_HEIGHT*2,
                                     hwndInputBox, NULL,
                                     hThisInstance, NULL);
-            hwndEditBox = CreateWindow("Edit", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL | ES_LEFT, CIB_LEFT_OFFSET,
+            hwndEditBox = CreateWindowA("Edit", "", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL | ES_LEFT, CIB_LEFT_OFFSET,
                                     CIB_TOP_OFFSET + CIB_BTN_HEIGHT*2, CIB_WIDTH-CIB_LEFT_OFFSET*3, CIB_BTN_HEIGHT,
                                     hwndInputBox,   NULL,
                                     hThisInstance, NULL);
-            hwndOk =        CreateWindow("Button", "OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
+            hwndOk = CreateWindowA("Button", "OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
                                     CIB_WIDTH/2 - CIB_SPAN*2 - CIB_BTN_WIDTH, CIB_HEIGHT - CIB_TOP_OFFSET*4 - CIB_BTN_HEIGHT*2,
                                     CIB_BTN_WIDTH, CIB_BTN_HEIGHT, hwndInputBox, (HMENU)IDOK,
                                     hThisInstance, NULL);
-            hwndCancel =    CreateWindow("Button", "Cancel",
+            hwndCancel = CreateWindowA("Button", "Cancel",
                                     WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON,
                                     CIB_WIDTH/2 + CIB_SPAN, CIB_HEIGHT - CIB_TOP_OFFSET*4 - CIB_BTN_HEIGHT*2,  CIB_BTN_WIDTH, CIB_BTN_HEIGHT,
                                     hwndInputBox, (HMENU)IDCANCEL,
@@ -1152,16 +1178,16 @@ std::string prompt( const std::string &title, const std::string &current_value, 
 
         void show(LPCSTR lpszTitle, LPCSTR  lpszQuery)
         {
-            SetWindowText(hwndInputBox, lpszTitle);
-            SetWindowText(hwndEditBox, szInputText);
-            SetWindowText(hwndQuery, lpszQuery);
+            SetWindowTextA(hwndInputBox, lpszTitle);
+            SetWindowTextA(hwndEditBox, szInputText);
+            SetWindowTextA(hwndQuery, lpszQuery);
             SendMessage(hwndEditBox, EM_LIMITTEXT, wInputMaxLength, 0);
             SendMessage(hwndEditBox, EM_SETSEL, 0, -1);
             SetFocus(hwndEditBox);
             ShowWindow(hwndInputBox, SW_NORMAL);
         }
 
-        int show(HWND hwndParentWindow, LPCTSTR lpszTitle, LPCTSTR lpszQuery, LPSTR szResult, WORD wMax)
+        int show(HWND hwndParentWindow, LPCSTR lpszTitle, LPCSTR lpszQuery, LPSTR szResult, WORD wMax)
         {
             MSG msg;
             BOOL    bRet;
@@ -1175,7 +1201,7 @@ std::string prompt( const std::string &title, const std::string &current_value, 
 
             show(lpszTitle, lpszQuery);
 
-            while( (bRet = GetMessage( &msg, NULL, 0, 0 )) != 0)
+            while( (bRet = GetMessageA( &msg, NULL, 0, 0 )) != 0)
             {
                 if (msg.message==WM_KEYDOWN) {
                     switch (msg.wParam) {
@@ -1212,7 +1238,7 @@ std::string prompt( const std::string &title, const std::string &current_value, 
 
     strcpy( result, current_value.c_str() );
 
-    myinp.show(0, title.c_str(), caption.size() ? caption.c_str() : title.c_str(), result, 2048);
+    myinp.show(0, "L", caption.size() ? caption.c_str() : title.c_str(), result, 2048);
 
     std::string _r = result;
 
@@ -1342,7 +1368,7 @@ void add_worker( heal_callback_in fn ) {
 
 void add_webmain( int port, heal_http_callback fn ) {
 
-    add_firewall_rule( "webmain (HEAL library)", true, true, port );
+//  add_firewall_rule( "webmain (HEAL library)", true, true, port );
 
     std::thread( [=]() {
         INIT();
@@ -1853,52 +1879,36 @@ double get_time_os()
 #endif
 }
 
-namespace {
-    std::string human_size( size_t bytes ) {
-        /**/ if( bytes >= 1024 * 1024 * 1024 ) return to_string( bytes / (1024 * 1024 * 1024)) + " GB";
-        else if( bytes >=   16 * 1024 * 1024 ) return to_string( bytes / (       1024 * 1024)) + " MB";
-        else if( bytes >=          16 * 1024 ) return to_string( bytes / (              1024)) + " KB";
-        else                                   return to_string( bytes ) + " bytes";
-    }
-    std::string human_time( double time ) {
-        /**/ if( time >   48 * 3600 ) return to_string( time / (24*3600), 0 ) + " days";
-        else if( time >    120 * 60 ) return to_string( time / (60*60), 0 ) + " hours";
-        else if( time >=        120 ) return to_string( time / 60, 0 ) + " mins";
-        else if( time >= 1 || time <= 0 ) return to_string( time, 2 ) + " s";
-        else if( time <= 1 / 1000.f )
-            return to_string( time * 1000000, 0 ) + " ns";
-        else
-            return to_string( time * 1000, 0 ) + " ms";
-    }
+std::string as_human_size( size_t bytes ) {
+    /**/ if( bytes >= 1024 * 1024 * 1024 ) return to_string( bytes / (1024 * 1024 * 1024)) + " GB";
+    else if( bytes >=   16 * 1024 * 1024 ) return to_string( bytes / (       1024 * 1024)) + " MB";
+    else if( bytes >=          16 * 1024 ) return to_string( bytes / (              1024)) + " KB";
+    else                                   return to_string( bytes ) + " bytes";
 }
-
-/*
-bool _() {
-    std::cout << human_time(  72 * 60 * 60 ) << std::endl;
-    std::cout << human_time(  48 * 60 * 60 ) << std::endl;
-    std::cout << human_time(  36 * 60 * 60 ) << std::endl;
-    std::cout << human_time(  24 * 60 * 60 ) << std::endl;
-    std::cout << human_time(   3 * 60 * 60 ) << std::endl;
-    std::cout << human_time(   2 * 60 * 60 ) << std::endl;
-    std::cout << human_time(   1 * 60 * 60 ) << std::endl;
-    std::cout << human_time( 0.5 * 60 * 60 ) << std::endl;
-    std::cout << human_time( 0.25 * 60 * 60 ) << std::endl;
-    std::cout << human_time( 10 * 60 ) << std::endl;
-    std::cout << human_time(  5 * 60 ) << std::endl;
-    std::cout << human_time(  2 * 60 ) << std::endl;
-    std::cout << human_time(  90 ) << std::endl;
-    std::cout << human_time(  60 ) << std::endl;
-    std::cout << human_time(  45 ) << std::endl;
-    std::cout << human_time(  2 ) << std::endl;
-    std::cout << human_time(  1 ) << std::endl;
-    std::cout << human_time(  0 ) << std::endl;
-    std::cout << human_time(  0.001 ) << std::endl;
-    std::cout << human_time(  1/60.f ) << std::endl;
-    std::cout << human_time(  0.000001 ) << std::endl;
-    std::cout << human_time(  0.000000001 ) << std::endl;
-    return true;
+std::string as_human_time( double time ) {
+    /**/ if( time >   48 * 3600 ) return to_string( time / (24*3600), 0 ) + " days";
+    else if( time >    120 * 60 ) return to_string( time / (60*60), 0 ) + " hours";
+    else if( time >=        120 ) return to_string( time / 60, 0 ) + " mins";
+    else if( time >= 1 || time <= 0 ) return to_string( time, 2 ) + " s";
+    else if( time <= 1 / 1000.f )
+        return to_string( time * 1000000, 0 ) + " ns";
+    else
+        return to_string( time * 1000, 0 ) + " ms";
 }
-const bool __ = _();*/
+std::string as_human_chrono( double time ) {
+    uint64_t time64 = uint64_t( time );
+    uint64_t secs64 = ( time64 % 60 );
+    uint64_t mins64 = ( time64 / 60 ) % 60;
+    uint64_t hour64 = ( time64 / 3600 ) % 24;
+    uint64_t days64 = ( time64 / 86400 );
+    std::string csecs = std::to_string( int( time * 100 ) % 100 );
+    std::string sign = std::string() + (time < 0 ? '-' : '+');
+    return sign +
+        std::to_string(days64) + (hour64 < 10 ? "d:0" : "d:") +
+        std::to_string(hour64) + (mins64 < 10 ? "h:0" : "h:") +
+        std::to_string(mins64) + (secs64 < 10 ? "m:0" : "m:") +
+        std::to_string(secs64) + "." + csecs + "s";
+}
 
 namespace {
     const double app_epoch = get_time_os();
@@ -1907,879 +1917,8 @@ double get_time_app() {
     return get_time_os() - app_epoch;
 }
 
-std::string get_mem_peak_str() {
-    return human_size( get_mem_peak() );
-}
-std::string get_mem_current_str() {
-    return human_size( get_mem_current() );
-}
-std::string get_mem_size_str() {
-    return human_size( get_mem_size() );
-}
-std::string get_time_thread_str() {
-    return human_time( get_time_thread() );
-}
-std::string get_time_os_str() {
-    return human_time( get_time_os() );
-}
-std::string get_time_app_str() {
-    return human_time( get_time_app() );
-}
-
-#include <stdio.h>
-
-#include <fstream>
-#include <iostream>
-#include <string>
-#include <cassert>
-#include <vector>
-#include <string>
-
-#ifdef _WIN32
-#include <Shlobj.h>
-#include <Shlwapi.h>
-#include <Windows.h>
-#include <netfw.h>
-#pragma comment(lib, "ole32.lib")
-#pragma comment(lib, "oleaut32.lib")
-#pragma comment(lib, "shlwapi.lib")
-#pragma comment(lib, "shell32.lib")
-/*****************************************************************************\
-Description :
-Archive     : $Archive: WinXPSP2FireWall $
-Revision    : $Revision: 1 $
-Date        : $Date: 05-07-06 11:14a $
-Author      : 07/06/2005, Kim Youngjin
-\*****************************************************************************/
-
-
-const int FW_MAX_ERROR_MESSAGE=256;
-
-enum FW_ERROR_CODE
-{
-    FW_NOERROR = 0,
-    FW_ERR_INITIALIZED,                 // Already initialized or doesn't call Initialize()
-    FW_ERR_CREATE_SETTING_MANAGER,      // Can't create an instance of the firewall settings manager
-    FW_ERR_LOCAL_POLICY,                // Can't get local firewall policy
-    FW_ERR_PROFILE,                     // Can't get the firewall profile
-    FW_ERR_FIREWALL_IS_ENABLED,         // Can't get the firewall enable information
-    FW_ERR_FIREWALL_ENABLED,            // Can't set the firewall enable option
-    FW_ERR_INVALID_ARG,                 // Invalid Arguments
-    FW_ERR_AUTH_APPLICATIONS,           // Failed to get authorized application list
-    FW_ERR_APP_ENABLED,                 // Failed to get the application is enabled or not
-    FW_ERR_CREATE_APP_INSTANCE,         // Failed to create an instance of an authorized application
-    FW_ERR_SYS_ALLOC_STRING,            // Failed to alloc a memory for BSTR
-    FW_ERR_PUT_PROCESS_IMAGE_NAME,      // Failed to put Process Image File Name to Authorized Application
-    FW_ERR_PUT_REGISTER_NAME,           // Failed to put a registered name
-    FW_ERR_ADD_TO_COLLECTION,           // Failed to add to the Firewall collection
-    FW_ERR_REMOVE_FROM_COLLECTION,      // Failed to remove from the Firewall collection
-    FW_ERR_GLOBAL_OPEN_PORTS,           // Failed to retrieve the globally open ports
-    FW_ERR_PORT_IS_ENABLED,             // Can't get the firewall port enable information
-    FW_ERR_PORT_ENABLED,                // Can't set the firewall port enable option
-    FW_ERR_CREATE_PORT_INSTANCE,        // Failed to create an instance of an authorized port
-    FW_ERR_SET_PORT_NUMBER,             // Failed to set port number
-    FW_ERR_SET_IP_PROTOCOL,             // Failed to set IP Protocol
-    FW_ERR_EXCEPTION_NOT_ALLOWED,       // Failed to get or put the exception not allowed
-    FW_ERR_NOTIFICATION_DISABLED,       // Failed to get or put the notification disabled
-    FW_ERR_UNICAST_MULTICAST,           // Failed to get or put the UnicastResponses To MulticastBroadcast Disabled Property
-};
-
-class WinXPSP2FireWall
-{
-public:
-    WinXPSP2FireWall(void);
-    ~WinXPSP2FireWall(void);
-
-    // You should call after CoInitialize() is called
-    FW_ERROR_CODE Initialize();
-
-    // This function is automatically called by destructor, but should be called before CoUninitialize() is called
-    FW_ERROR_CODE Uninitialize();
-
-    FW_ERROR_CODE IsWindowsFirewallOn( BOOL& bOn );
-
-    FW_ERROR_CODE TurnOnWindowsFirewall();
-    FW_ERROR_CODE TurnOffWindowsFirewall();
-
-    // lpszProcessImageFilaName: File path
-    // lpszRegisterName: You can see this name throught the control panel
-    FW_ERROR_CODE AddApplication( const wchar_t* lpszProcessImageFileName, const wchar_t* lpszRegisterName );
-    FW_ERROR_CODE RemoveApplication( const wchar_t* lpszProcessImageFileName );
-    FW_ERROR_CODE IsAppEnabled( const wchar_t* lpszProcessImageFileName, BOOL& bEnable );
-
-    // lpszRegisterName: You can see this name throught the control panel
-    FW_ERROR_CODE AddPort( LONG lPortNumber, NET_FW_IP_PROTOCOL ipProtocol, const wchar_t* lpszRegisterName );
-    FW_ERROR_CODE RemovePort( LONG lPortNumber, NET_FW_IP_PROTOCOL ipProtocol );
-    FW_ERROR_CODE IsPortEnabled( LONG lPortNumber, NET_FW_IP_PROTOCOL ipProtocol, BOOL& bEnable );
-
-    FW_ERROR_CODE IsExceptionNotAllowed( BOOL& bNotAllowed );
-    FW_ERROR_CODE SetExceptionNotAllowed( BOOL bNotAllowed );
-
-    FW_ERROR_CODE IsNotificationDiabled( BOOL& bDisabled );
-    FW_ERROR_CODE SetNotificationDiabled( BOOL bDisabled );
-
-    FW_ERROR_CODE IsUnicastResponsesToMulticastBroadcastDisabled( BOOL& bDisabled );
-    FW_ERROR_CODE SetUnicastResponsesToMulticastBroadcastDisabled( BOOL bDisabled );
-protected:
-    INetFwProfile* m_pFireWallProfile;
-};
-/*****************************************************************************\
-Description :
-Archive     : $Archive: WinXPSP2FireWall $
-Revision    : $Revision: 1 $
-Date        : $Date: 05-07-06 11:14a $
-Author      : 07/06/2005, Kim Youngjin
-\*****************************************************************************/
-
-#include <netfw.h>
-
-WinXPSP2FireWall::WinXPSP2FireWall(void)
-{
-    m_pFireWallProfile = NULL;
-}
-
-WinXPSP2FireWall::~WinXPSP2FireWall(void)
-{
-    Uninitialize();
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::Initialize()
-{
-    HRESULT hr = S_FALSE;
-    INetFwMgr* fwMgr = NULL;
-    INetFwPolicy* fwPolicy = NULL;
-
-    FW_ERROR_CODE ret = FW_NOERROR;
-    try
-    {
-        if( m_pFireWallProfile )
-            throw FW_ERR_INITIALIZED;
-
-        // Create an instance of the firewall settings manager.
-        hr = CoCreateInstance( __uuidof(NetFwMgr), NULL, CLSCTX_INPROC_SERVER, __uuidof( INetFwMgr), (void**)&fwMgr );
-
-        if( FAILED( hr ))
-            throw FW_ERR_CREATE_SETTING_MANAGER;
-
-        // Retrieve the local firewall policy.
-        hr = fwMgr->get_LocalPolicy( &fwPolicy );
-        if( FAILED( hr ))
-            throw FW_ERR_LOCAL_POLICY;
-
-        // Retrieve the firewall profile currently in effect
-        hr = fwPolicy->get_CurrentProfile( &m_pFireWallProfile );
-        if( FAILED( hr ))
-            throw FW_ERR_PROFILE;
-
-    }
-    catch( FW_ERROR_CODE nError)
-    {
-        ret = nError;
-    }
-
-    if( fwPolicy )
-        fwPolicy->Release();
-    if( fwMgr )
-        fwMgr->Release();
-
-    return ret;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::Uninitialize()
-{
-    // Release the firewall profile
-    if( m_pFireWallProfile )
-    {
-        m_pFireWallProfile->Release();
-        m_pFireWallProfile = NULL;
-    }
-
-    return FW_NOERROR;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::IsWindowsFirewallOn( BOOL& bOn )
-{
-    HRESULT hr;
-    VARIANT_BOOL bFWEnabled;
-    bOn = FALSE;
-
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-
-        hr = m_pFireWallProfile->get_FirewallEnabled( &bFWEnabled );
-        if( FAILED(hr))
-            throw FW_ERR_FIREWALL_IS_ENABLED;
-
-        if( bFWEnabled != VARIANT_FALSE )
-            bOn = TRUE;
-    }
-    catch( FW_ERROR_CODE nError )
-    {
-        return nError;
-    }
-
-    return FW_NOERROR;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::TurnOnWindowsFirewall()
-{
-    HRESULT hr;
-
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-
-        // Check whether the firewall is off
-        BOOL bFWOn;
-        FW_ERROR_CODE ret = IsWindowsFirewallOn( bFWOn );
-
-        if( ret != FW_NOERROR )
-            throw ret;
-
-        // If it is off now, turn it on
-        if( !bFWOn )
-        {
-            hr = m_pFireWallProfile->put_FirewallEnabled( VARIANT_TRUE );
-            if( FAILED( hr ))
-                throw FW_ERR_FIREWALL_ENABLED;
-        }
-    }
-    catch( FW_ERROR_CODE nError )
-    {
-        return nError;
-    }
-
-    return FW_NOERROR;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::TurnOffWindowsFirewall()
-{
-    HRESULT hr;
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-
-        // Check whether the firewall is off
-        BOOL bFWOn;
-        FW_ERROR_CODE ret = IsWindowsFirewallOn( bFWOn );
-
-        if( ret != FW_NOERROR )
-            throw ret;
-
-        // If it is on now, turn it off
-        if( bFWOn )
-        {
-            hr = m_pFireWallProfile->put_FirewallEnabled( VARIANT_FALSE );
-            if( FAILED( hr ))
-                throw FW_ERR_FIREWALL_ENABLED;
-        }
-    }
-    catch( FW_ERROR_CODE nError )
-    {
-        return nError;
-    }
-    return FW_NOERROR;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::IsAppEnabled( const wchar_t* lpszProcessImageFileName, BOOL& bEnable )
-{
-    FW_ERROR_CODE ret = FW_NOERROR;
-    HRESULT hr;
-    BSTR bstrFWProcessImageFileName = NULL;
-    VARIANT_BOOL bFWEnabled;
-    INetFwAuthorizedApplication* pFWApp = NULL;
-    INetFwAuthorizedApplications* pFWApps = NULL;
-
-    bEnable = FALSE;
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-
-        if( lpszProcessImageFileName == NULL )
-            throw FW_ERR_INVALID_ARG;
-
-        hr = m_pFireWallProfile->get_AuthorizedApplications( &pFWApps );
-        if( FAILED( hr ))
-            throw FW_ERR_AUTH_APPLICATIONS;
-
-        // Allocate a BSTR for the process image file name
-        bstrFWProcessImageFileName = SysAllocString( lpszProcessImageFileName );
-        if( SysStringLen( bstrFWProcessImageFileName ) == 0)
-            throw FW_ERR_SYS_ALLOC_STRING;
-
-        hr = pFWApps->Item( bstrFWProcessImageFileName, &pFWApp);
-        // If FAILED, the appliacation is not in the collection list
-        if( SUCCEEDED( hr ))
-        {
-            // Find out if the authorized application is enabled
-            hr = pFWApp->get_Enabled( &bFWEnabled );
-
-            if( FAILED( hr ))
-                throw FW_ERR_APP_ENABLED;
-
-            if( bFWEnabled == VARIANT_TRUE )
-                bEnable = TRUE;
-        }
-    }
-    catch( FW_ERROR_CODE nError )
-    {
-        ret = nError;
-    }
-
-    // Free the BSTR
-    SysFreeString( bstrFWProcessImageFileName );
-
-    // Release memories to retrieve the information of the application
-    if( pFWApp )
-        pFWApp->Release();
-    if( pFWApps )
-        pFWApps->Release();
-
-    return ret;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::AddApplication( const wchar_t* lpszProcessImageFileName, const wchar_t* lpszRegisterName )
-{
-    FW_ERROR_CODE ret = FW_NOERROR;
-    HRESULT hr;
-    BOOL bAppEnable;
-    BSTR bstrProcessImageFileName = NULL;
-    BSTR bstrRegisterName = NULL;
-    INetFwAuthorizedApplication* pFWApp = NULL;
-    INetFwAuthorizedApplications* pFWApps = NULL;
-
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-        if( lpszProcessImageFileName == NULL || lpszRegisterName  == NULL )
-            throw FW_ERR_INVALID_ARG;
-
-        // First of all, check the application is already authorized;
-        FW_ERROR_CODE  nError = this->IsAppEnabled( lpszProcessImageFileName, bAppEnable );
-        if( nError != FW_NOERROR )
-            throw nError;
-
-        // Only add the application if it isn't authorized
-        if( bAppEnable == FALSE )
-        {
-            // Retrieve the authorized application collection
-            hr = m_pFireWallProfile->get_AuthorizedApplications( &pFWApps );
-            if( FAILED( hr ))
-                throw FW_ERR_AUTH_APPLICATIONS;
-
-            // Create an instance of an authorized application
-            hr = CoCreateInstance( __uuidof(NetFwAuthorizedApplication), NULL, CLSCTX_INPROC_SERVER, __uuidof(INetFwAuthorizedApplication), (void**)&pFWApp);
-            if( FAILED( hr ))
-                throw FW_ERR_CREATE_APP_INSTANCE;
-
-            // Allocate a BSTR for the Process Image FileName
-            bstrProcessImageFileName = SysAllocString( lpszProcessImageFileName );
-            if( SysStringLen( bstrProcessImageFileName ) == 0)
-                throw FW_ERR_SYS_ALLOC_STRING;
-
-            // Set the process image file name
-            hr = pFWApp->put_ProcessImageFileName( bstrProcessImageFileName );
-            if( FAILED( hr ) )
-                throw FW_ERR_PUT_PROCESS_IMAGE_NAME;
-
-            // Allocate a BSTR for register name
-            bstrRegisterName = SysAllocString( lpszRegisterName );
-            if( SysStringLen( bstrRegisterName ) == 0)
-                throw FW_ERR_SYS_ALLOC_STRING;
-            // Set a registered name of the process
-            hr = pFWApp->put_Name( bstrRegisterName );
-            if( FAILED( hr ))
-                throw FW_ERR_PUT_REGISTER_NAME;
-
-            // Add the application to the collection
-            hr = pFWApps->Add( pFWApp );
-            if( FAILED( hr ))
-                throw FW_ERR_ADD_TO_COLLECTION;
-        }
-    }
-    catch( FW_ERROR_CODE nError )
-    {
-        ret = nError;
-    }
-
-    SysFreeString( bstrProcessImageFileName );
-    SysFreeString( bstrRegisterName );
-
-    if( pFWApp )
-        pFWApp->Release();
-    if( pFWApps )
-        pFWApps->Release();
-
-    return ret;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::RemoveApplication( const wchar_t* lpszProcessImageFileName )
-{
-    FW_ERROR_CODE ret = FW_NOERROR;
-    HRESULT hr;
-    BOOL bAppEnable;
-    BSTR bstrProcessImageFileName = NULL;
-    INetFwAuthorizedApplications* pFWApps = NULL;
-
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-        if( lpszProcessImageFileName == NULL )
-            throw FW_ERR_INVALID_ARG;
-
-        FW_ERROR_CODE  nError = this->IsAppEnabled( lpszProcessImageFileName, bAppEnable );
-        if( nError != FW_NOERROR )
-            throw nError;
-
-        // Only remove the application if it is authorized
-        if( bAppEnable == TRUE )
-        {
-            // Retrieve the authorized application collection
-            hr = m_pFireWallProfile->get_AuthorizedApplications( &pFWApps );
-            if( FAILED( hr ))
-                throw FW_ERR_AUTH_APPLICATIONS;
-
-            // Allocate a BSTR for the Process Image FileName
-            bstrProcessImageFileName = SysAllocString( lpszProcessImageFileName );
-            if( SysStringLen( bstrProcessImageFileName ) == 0)
-                throw FW_ERR_SYS_ALLOC_STRING;
-            hr = pFWApps->Remove( bstrProcessImageFileName );
-            if( FAILED( hr ))
-                throw FW_ERR_REMOVE_FROM_COLLECTION;
-        }
-    }
-    catch( FW_ERROR_CODE nError)
-    {
-        ret = nError;
-    }
-
-    SysFreeString( bstrProcessImageFileName);
-    if( pFWApps )
-        pFWApps->Release();
-
-    return ret;
-}
-FW_ERROR_CODE WinXPSP2FireWall::IsPortEnabled( LONG lPortNumber, NET_FW_IP_PROTOCOL ipProtocol, BOOL& bEnable )
-{
-    FW_ERROR_CODE ret = FW_NOERROR;
-    VARIANT_BOOL bFWEnabled;
-    INetFwOpenPort* pFWOpenPort = NULL;
-    INetFwOpenPorts* pFWOpenPorts = NULL;
-    HRESULT hr;
-
-    bEnable = FALSE;
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-
-        // Retrieve the open ports collection
-        hr = m_pFireWallProfile->get_GloballyOpenPorts( &pFWOpenPorts );
-        if( FAILED( hr ))
-            throw FW_ERR_GLOBAL_OPEN_PORTS;
-
-        // Get the open port
-        hr = pFWOpenPorts->Item( lPortNumber, ipProtocol, &pFWOpenPort );
-        if( SUCCEEDED( hr ))
-        {
-            hr = pFWOpenPort->get_Enabled( &bFWEnabled );
-            if( FAILED( hr ))
-                throw FW_ERR_PORT_IS_ENABLED;
-
-            if( bFWEnabled == VARIANT_TRUE )
-                bEnable = TRUE;
-        }
-    }
-    catch( FW_ERROR_CODE nError)
-    {
-        ret = nError;
-    }
-
-    if( pFWOpenPort )
-        pFWOpenPort->Release();
-    if( pFWOpenPorts )
-        pFWOpenPorts->Release();
-
-    return ret;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::AddPort( LONG lPortNumber, NET_FW_IP_PROTOCOL ipProtocol, const wchar_t* lpszRegisterName )
-{
-    FW_ERROR_CODE ret = FW_NOERROR;
-    INetFwOpenPort* pFWOpenPort = NULL;
-    INetFwOpenPorts* pFWOpenPorts = NULL;
-    BSTR bstrRegisterName = NULL;
-    HRESULT hr;
-
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-        BOOL bEnablePort;
-        FW_ERROR_CODE nError = IsPortEnabled( lPortNumber, ipProtocol, bEnablePort);
-        if( nError != FW_NOERROR)
-            throw nError;
-
-        // Only add the port, if it isn't added to the collection
-        if( bEnablePort == FALSE )
-        {
-            // Retrieve the collection of globally open ports
-            hr = m_pFireWallProfile->get_GloballyOpenPorts( &pFWOpenPorts );
-            if( FAILED( hr ))
-                throw FW_ERR_GLOBAL_OPEN_PORTS;
-
-            // Create an instance of an open port
-            hr = CoCreateInstance( __uuidof(NetFwOpenPort), NULL, CLSCTX_INPROC_SERVER, __uuidof(INetFwOpenPort), (void**)&pFWOpenPort);
-            if( FAILED( hr ))
-                throw FW_ERR_CREATE_PORT_INSTANCE;
-
-            // Set the port number
-            hr = pFWOpenPort->put_Port( lPortNumber );
-            if( FAILED( hr ))
-                throw FW_ERR_SET_PORT_NUMBER;
-
-            // Set the IP Protocol
-            hr = pFWOpenPort->put_Protocol( ipProtocol );
-            if( FAILED( hr ))
-                throw FW_ERR_SET_IP_PROTOCOL;
-
-            bstrRegisterName = SysAllocString( lpszRegisterName );
-            if( SysStringLen( bstrRegisterName ) == 0)
-                throw FW_ERR_SYS_ALLOC_STRING;
-
-            // Set the registered name
-            hr = pFWOpenPort->put_Name( bstrRegisterName );
-            if( FAILED( hr ))
-                throw FW_ERR_PUT_REGISTER_NAME;
-
-            hr = pFWOpenPorts->Add( pFWOpenPort );
-            if( FAILED( hr ))
-                throw FW_ERR_ADD_TO_COLLECTION;
-        }
-
-    }
-    catch( FW_ERROR_CODE nError)
-    {
-        ret = nError;
-    }
-
-    SysFreeString( bstrRegisterName );
-    if( pFWOpenPort )
-        pFWOpenPort->Release();
-    if( pFWOpenPorts )
-        pFWOpenPorts->Release();
-
-    return ret;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::RemovePort( LONG lPortNumber, NET_FW_IP_PROTOCOL ipProtocol )
-{
-    FW_ERROR_CODE ret = FW_NOERROR;
-    INetFwOpenPorts* pFWOpenPorts = NULL;
-    HRESULT hr;
-
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-        BOOL bEnablePort;
-        FW_ERROR_CODE nError = IsPortEnabled( lPortNumber, ipProtocol, bEnablePort);
-        if( nError != FW_NOERROR)
-            throw nError;
-
-        // Only remove the port, if it is on the collection
-        if( bEnablePort == TRUE )
-        {
-            // Retrieve the collection of globally open ports
-            hr = m_pFireWallProfile->get_GloballyOpenPorts( &pFWOpenPorts );
-            if( FAILED( hr ))
-                throw FW_ERR_GLOBAL_OPEN_PORTS;
-
-            hr = pFWOpenPorts->Remove( lPortNumber, ipProtocol );
-            if (FAILED( hr ))
-                throw FW_ERR_REMOVE_FROM_COLLECTION;
-        }
-
-    }
-    catch( FW_ERROR_CODE nError)
-    {
-        ret = nError;
-    }
-
-    if( pFWOpenPorts )
-        pFWOpenPorts->Release();
-
-    return ret;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::IsExceptionNotAllowed( BOOL& bNotAllowed )
-{
-    FW_ERROR_CODE ret = FW_NOERROR;
-
-    bNotAllowed = TRUE;
-
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-
-        VARIANT_BOOL bExNotAllowed;
-
-        HRESULT hr = m_pFireWallProfile->get_ExceptionsNotAllowed( &bExNotAllowed );
-
-        if( FAILED( hr ))
-            throw FW_ERR_EXCEPTION_NOT_ALLOWED;
-
-        if( bExNotAllowed == VARIANT_TRUE )
-            bNotAllowed = TRUE;
-        else
-            bNotAllowed = FALSE;
-    }
-    catch( FW_ERROR_CODE nError)
-    {
-        ret = nError;
-    }
-
-    return ret;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::SetExceptionNotAllowed( BOOL bNotAllowed )
-{
-    FW_ERROR_CODE ret = FW_NOERROR;
-
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-        HRESULT hr = m_pFireWallProfile->put_ExceptionsNotAllowed( bNotAllowed ? VARIANT_TRUE : VARIANT_FALSE );
-
-        if( FAILED( hr ))
-            throw FW_ERR_EXCEPTION_NOT_ALLOWED;
-    }
-    catch( FW_ERROR_CODE nError)
-    {
-        ret = nError;
-    }
-
-    return ret;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::IsNotificationDiabled( BOOL& bDisabled )
-{
-    FW_ERROR_CODE ret = FW_NOERROR;
-
-    bDisabled = FALSE;
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-
-        VARIANT_BOOL bNotifyDisable;
-        HRESULT hr = m_pFireWallProfile->get_NotificationsDisabled( &bNotifyDisable );
-        if( FAILED( hr ))
-            throw FW_ERR_NOTIFICATION_DISABLED;
-
-        if( bNotifyDisable == VARIANT_TRUE )
-            bDisabled = TRUE;
-        else
-            bDisabled = FALSE;
-    }
-    catch( FW_ERROR_CODE nError)
-    {
-        ret = nError;
-    }
-
-    return ret;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::SetNotificationDiabled( BOOL bDisabled )
-{
-    FW_ERROR_CODE ret = FW_NOERROR;
-
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-
-        HRESULT hr = m_pFireWallProfile->put_NotificationsDisabled( bDisabled ? VARIANT_TRUE : VARIANT_FALSE );
-        if( FAILED( hr ))
-            throw FW_ERR_NOTIFICATION_DISABLED;
-    }
-    catch( FW_ERROR_CODE nError)
-    {
-        ret = nError;
-    }
-
-    return ret;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::IsUnicastResponsesToMulticastBroadcastDisabled( BOOL& bDisabled )
-{
-    FW_ERROR_CODE ret = FW_NOERROR;
-
-    bDisabled = FALSE;
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-
-        VARIANT_BOOL bUniMultiDisabled;
-        HRESULT hr = m_pFireWallProfile->get_UnicastResponsesToMulticastBroadcastDisabled( &bUniMultiDisabled );
-        if( FAILED( hr ))
-            throw FW_ERR_UNICAST_MULTICAST;
-
-        if( bUniMultiDisabled == VARIANT_TRUE )
-            bDisabled = TRUE;
-        else
-            bDisabled = FALSE;
-    }
-    catch( FW_ERROR_CODE nError)
-    {
-        ret = nError;
-    }
-
-    return ret;
-}
-
-FW_ERROR_CODE WinXPSP2FireWall::SetUnicastResponsesToMulticastBroadcastDisabled( BOOL bDisabled )
-{
-    FW_ERROR_CODE ret = FW_NOERROR;
-
-    try
-    {
-        if( m_pFireWallProfile == NULL )
-            throw FW_ERR_INITIALIZED;
-
-        HRESULT hr = m_pFireWallProfile->put_UnicastResponsesToMulticastBroadcastDisabled( bDisabled ? VARIANT_TRUE : VARIANT_FALSE );
-        if( FAILED( hr ))
-            throw FW_ERR_UNICAST_MULTICAST;
-    }
-    catch( FW_ERROR_CODE nError)
-    {
-        ret = nError;
-    }
-
-    return ret;
-}
-
-#endif
-
-#define $check(...) check(#__VA_ARGS__, __VA_ARGS__)
-
-namespace {
-    void check(const std::string &desc, unsigned code) {
-        $windows(
-            assert3( code, ==, FW_NOERROR );
-        )
-    }
-    std::wstring wstr( const std::string &s ) {
-        return std::wstring( s.begin(), s.end() );
-    }
-}
-
-bool is_root() {
-    $windows(
-    return IsUserAnAdmin() == TRUE;
-    )
-    return true;
-}
-
-std::string get_app_path() {
-    $windows(
-    HMODULE hModule = GetModuleHandleW(NULL);
-    CHAR path[MAX_PATH];
-    GetModuleFileNameA(hModule, path, MAX_PATH);
-    std::ifstream ifs(path);
-    if( !ifs.good() )
-        return std::string();
-    return path;
-    )
-    return "./";
-}
-
-bool add_firewall_rule( const std::string &name, bool on, const std::string &binpath ) {
-    $windows(
-    if( !is_root() ) {
-        std::cout << "program requires admin rights elevation" << std::endl;
-        return false;
-    }
-    if( binpath.empty() ) {
-        std::cout << "wrong path" << std::endl;
-        return false;
-    }
-    {
-        CoInitialize( NULL );
-
-        WinXPSP2FireWall fw;
-        $check(fw.Initialize());
-
-            if( on )
-            $check(fw.AddApplication( wstr(binpath).c_str(), wstr(name).c_str() ));
-            else
-            $check(fw.RemoveApplication( wstr(binpath).c_str() ));
-
-        $check(fw.Uninitialize());
-
-        CoUninitialize();
-    }
-    )
-    return true;
-}
-bool add_firewall_rule( const std::string &name, bool on, bool tcp, int port ) {
-    $windows(
-    if( !is_root() ) {
-        std::cout << "program requires admin rights elevation" << std::endl;
-        return false;
-    }
-    {
-        CoInitialize( NULL );
-
-        WinXPSP2FireWall fw;
-        $check(fw.Initialize());
-
-            if( on )
-            $check(fw.AddPort( port, tcp ? NET_FW_IP_PROTOCOL_TCP : NET_FW_IP_PROTOCOL_UDP, wstr(name).c_str() ));
-            else
-            $check(fw.RemovePort( port, tcp ? NET_FW_IP_PROTOCOL_TCP : NET_FW_IP_PROTOCOL_UDP ));
-
-        $check(fw.Uninitialize());
-
-        CoUninitialize();
-    }
-    )
-    return true;
-}
-
-
-std::string get_pipe( const std::string &cmd, int *retcode ) {
-
-    std::string out;
-
-    FILE *fp = $windows( _popen ) $welse( popen ) ( cmd.c_str(), "r" );
-    if( fp ) {
-        while( !feof(fp) ) {
-            char buffer[1024];
-            if( fgets( buffer, 1024, fp ) ) {
-                out += buffer;
-            }
-        }
-
-        int ret = $windows( _pclose ) $welse( pclose ) ( fp );
-        if( retcode ) *retcode = ret;
-    }
-
-    return out;
-}
-
 std::ostream &benchmark::print( std::ostream &os ) const {
-    os << name() << " = " << human_size(mem) << ", " << human_time(time) << std::endl;
+    os << name() << " = " << as_human_size(mem) << ", " << as_human_time(time) << std::endl;
     return os;
 }
 
