@@ -95,6 +95,10 @@ $undefined_os
 
 $quote
 
+$comment
+$uncomment
+
+
 Sample
 ------
 ```c++

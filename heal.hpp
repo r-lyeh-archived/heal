@@ -3,22 +3,24 @@
 
 #include <stdio.h>
 
+#include <functional>
 #include <iostream>
 #include <istream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <vector>
-#include <functional>
-
 
 // OS utils. Here is where the fun starts... good luck
 
-#define $quote(...)   #__VA_ARGS__
+#define $quote(...)     #__VA_ARGS__
+#define $comment(...)   $no
+#define $uncomment(...) $yes
 
 #define $yes(...)     __VA_ARGS__
 #define $no(...)
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32)
 #   define $windows   $yes
 #   define $welse     $no
 #else
@@ -108,25 +110,13 @@
 #endif
 
 // create a $warning(...) macro
-
-/*
-#if $on($msvc)
-#   define $warning(msg) __pragma( message( msg ) )
-#elif defined(__GNUC__) && defined(GCC_VERSION) && GCC_VERSION >= 40400
-#   define $warning$message$impl(msg) _Pragma(#msg)
-#   define $warning(msg) $warning$message$impl( message( msg ) )
-#else
-#   define $warning(msg)
-#endif
-*/
-
 // usage: $warning("this is shown at compile time")
 #define $heal$todo$stringize$impl(X) #X
 #define $heal$todo$stringize(X) $heal$todo$stringize$impl(X)
-#if defined(_MSC_VER)
+#if $on($msvc)
 #   define $heal$todo$message(msg) __FILE__ "(" $heal$todo$stringize(__LINE__)") : $warning - " msg " - [ "__FUNCTION__ " ]"
 #   define $warning(msg) __pragma( message( $heal$todo$message(msg) ) )
-#elif defined(__GNUC__) && defined(GCC_VERSION) && GCC_VERSION >= 40400
+#elif $on($gnuc) || $on($clang)
 #   define $heal$todo$message(msg) __FILE__ "(" $heal$todo$stringize(__LINE__)") : $warning - " msg " - [ "__func__ " ]"
 #   define $heal$todo$message$impl(msg) _Pragma(#msg)
 #   define $warning(msg) $heal$todo$message$impl( message( $heal$todo$message(msg) ) )
@@ -150,6 +140,9 @@ void add_webmain( int port, heal_http_callback fn );
 
 void die( const std::string &reason, int errorcode = -1 );
 void die( int errorcode = -1, const std::string &reason = std::string() );
+
+void sleep( double seconds );
+void tick();
 
 void breakpoint();
 bool debugger( const std::string &reason = std::string() );
@@ -177,40 +170,43 @@ size_t get_mem_size();             // size of physical memory (RAM) in bytes
 double get_time_thread();          // amount of CPU time used by the current process, in seconds, or -1.0
 double get_time_os();              // real OS time, in seconds, or -1.0
 double get_time_app();             // app time, in seconds, or -1.0
-std::string get_mem_peak_str();    // peak of resident set size (physical memory use), in human metrics
-std::string get_mem_current_str(); // curent set size (physical memory use), in human metrics
-std::string get_mem_size_str();    // size of physical memory (RAM, in human metrics
-std::string get_time_thread_str(); // amount of CPU time used by the current process, in human metrics
-std::string get_time_os_str();     // real OS time, in human metrics
-std::string get_time_app_str();    // app time, in human metrics
+
+std::string as_human_size( size_t bytes );
+std::string as_human_time( double time );
+std::string as_human_chrono( double time );
 
 struct benchmark : public std::string {
-    double mem;
-    double time;
-    bool stopped;
+    double mem = 0;
+    double time = 0;
+    bool cancelled = 0, stopped = 1;
 
-    explicit
-    benchmark( const char *text ) : std::string(text), mem(0), time(0), stopped(1)
+    static std::map< std::string, benchmark > &all() {
+        static std::map< std::string, benchmark > map;
+        return map;
+    }
+
+    benchmark( const char *text = "" ) : std::string(text)
     {}
 
     void start() {
+        cancelled = false;
         stopped = false;
-        do { mem = get_mem_current(); } while( !mem );
-        do { time = get_time_app(); } while( time < 0 );
+        double mem;  do { mem = get_mem_current(); } while( !mem );
+        double time; do { time = get_time_app(); } while( time < 0 );
+        this->mem -= mem;
+        this->time -= time;
     }
 
     void stop() {
-        //if( !stopped )
-        {
-            stopped = true;
-            double time; do { time = get_time_app(); } while ( time < 0 );
-            double mem;  do { mem = get_mem_current(); } while ( !mem );
-            this->mem = mem - this->mem;
-            this->time = time - this->time;
-        }
+        stopped = true;
+        double time; do { time = get_time_app(); } while ( time < 0 );
+        double mem;  do { mem = get_mem_current(); } while ( !mem );
+        this->mem += mem;
+        this->time += time;
     }
 
     void cancel() {
+        cancelled = true;
         mem = time = 0;
         stopped = true;
     }
@@ -233,10 +229,20 @@ struct scoped_benchmark : public benchmark {
     }
 
     ~scoped_benchmark() {
+        if( this->cancelled ) {
+            return;
+        }
         this->stop();
         this->print( OSS );
+
+        auto &self = this->all()[ this->name() ];
+        self.name() = this->name();
+        self.time += this->time;
+        self.mem  += this->mem;
     }
 };
+
+std::string top100();
 
 struct callstack /* : public std::vector<const void*> */ {
     enum { max_frames = 128 };
