@@ -1,33 +1,24 @@
-#include <iostream>
+#include <stdlib.h>
+#include <time.h>
+
 #include <fstream>
+#include <iostream>
 
 #include "heal.hpp"
 
+using namespace heal;
+
 // print this on compile time
 $warning("I *still* have to document this library");
-
-// benchmark before main()
-void recursive_delay( int counter ) {
-    scoped_benchmark<> sb("recursive_delay");
-    if( counter-- ) {
-        sleep( rand() / double(RAND_MAX) );
-        recursive_delay( counter );
-    }
-}
-const bool bench_before_main = (recursive_delay(3), true);
 
 // html template for web server
 extern std::string html_template;
 
 int main()
 {
-    // benchmark results
-    std::cout << top100() << std::endl;
-
     // print some stats
     std::cout << timestamp() << std::endl;
     std::cout << ( is_debug() ? "Debug build" : "Release build" ) << std::endl;
-    std::cout << "Using " << as_human_size( get_mem_current() ) << '/' << as_human_size( get_mem_size() ) << std::endl;
 
     // print current stack trace
     for( auto &line : stacktrace("\1) \2") ) {
@@ -36,8 +27,6 @@ int main()
 
     // measure scope
     {
-        scoped_benchmark<> sb("background workers installation");
-
         // add a parallel worker
         add_worker( []( const std::string &text ) {
             static int i = 0;
@@ -47,20 +36,19 @@ int main()
 
         // add a web server, with stats in ajax
         add_webmain( 8080, []( std::ostream &headers, std::ostream &content, const std::string &url ) {
-            if( url.find("/stats") == std::string::npos ) {
+            if( url.find("/echo") == std::string::npos ) {
                 headers << "Content-Type: text/html;charset=UTF-8\r\n";
-                content << html_template << "webthread echo: " << url << std::endl;
+                content << html_template << "echo: " << url << std::endl;
                 return 200;
             } else {
-                int CPUloading = rand() % 100;
-                int CPUcore = CPUloading - 30 < 0 ? 0 : rand() % (CPUloading - 30);
-                double Disk = get_mem_current();
-
                 headers << "Content-Type: application/json\r\n";
-                content << "{\"cpu\":" << CPUloading << ", \"core\":" << CPUcore << ", \"disk\":" << Disk << "}" << std::endl;
+                content << "{\"cpu\":0, \"core\":0, \"disk\":0}" << std::endl;
                 return 200;
             }
         } );
+
+        //
+        std::cout << "webserver installed at localhost:8080. try / and /echo" << std::endl;
     }
 
     // initialize chain of warns and fails
@@ -93,10 +81,8 @@ int main()
         alert( "Asserts are enabled. Assertions will be perfomed" );
     }
 
-    assert1( true );
-    assert2( true, "This should never fail" );
-    assert3( 50, <, 100 );
-    assert4( 100, ==, 100, "Why not " << 100 << '?' );
+    srand( time(0) );
+    assert( rand() < RAND_MAX/2 && "this will fail half the times you try" );
 
     if( !debugger("We are about to launch debugger, if possible.") ) {
         die( "debugger() call didnt work. Exiting..." );

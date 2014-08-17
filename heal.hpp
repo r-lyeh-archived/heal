@@ -1,3 +1,101 @@
+// -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< --
+
+/* Smart assert replacement for LHS/RHS values
+ * Copyright (c) 2014 Mario 'rlyeh' Rodriguez
+
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+
+ * - rlyeh ~~ listening to Tuber / Desert Overcrowded
+ */
+
+/* Private API */
+
+#ifndef ASSERTPP_HEADER
+#define ASSERTPP_HEADER
+
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+
+#include <deque>
+#include <string>
+#include <sstream>
+
+namespace assertpp {
+    class check {
+        int ok;
+        std::deque< std::string > xpr;
+        template<typename T> static std::string to_str( const T &t ) { std::stringstream ss; return ss << t ? ss.str() : "??"; }
+    public:
+        check( const char *const text, const char *const file, int line, bool result )
+        :   xpr( {std::string(file) + ':' + to_str(line), "", text, "" } ), ok(result)
+        {}
+        ~check() {
+            if( xpr.empty() ) return;
+            operator bool();
+            xpr[0] = xpr[0] + xpr[1];
+            xpr.erase( xpr.begin() + 1 );
+            if( !ok ) {
+                xpr[2] = xpr[2].substr( xpr[2][2] == ' ' ? 3 : 4 );
+                xpr[1].resize( (xpr[1] != xpr[2]) * xpr[1].size() );
+                std::string buf;
+                buf = "<heal/heal.hpp> says: expression failed! (" + xpr[1] + ") -> (" + xpr[2] + ") -> (unexpected) at " + xpr[0] + "\n";
+                fprintf(stderr, "%s", buf.c_str() );
+                // assert fallback here
+                fclose( stderr );
+                fclose( stdout );
+                assert( !"<heal/heal.hpp> says: expression failed!" );
+                // user defined fallbacks here
+                for(;;) {}
+            };
+        }
+#       define assert$impl(OP) \
+        template<typename T> check &operator OP( const T &rhs         ) { return xpr[3] += " "#OP" " + to_str(rhs), *this; } \
+        template<unsigned N> check &operator OP( const char (&rhs)[N] ) { return xpr[3] += " "#OP" " + to_str(rhs), *this; }
+        operator bool() {
+            return xpr.size() >= 3 && xpr[3].size() >= 6 && [&]() -> bool {
+                char sign = xpr[3].at(xpr[3].size()/2+1);
+                bool equal = xpr[3].substr( 4 + xpr[3].size()/2 ) == xpr[3].substr( 3, xpr[3].size()/2 - 3 );
+                return ok = ( sign == '=' ? equal : ( sign == '!' ? !equal : ok ) );
+            }(), ok;
+        }
+        assert$impl( <); assert$impl(<=); assert$impl( >); assert$impl(>=); assert$impl(!=); assert$impl(==); assert$impl(^=);
+        assert$impl(&&); assert$impl(&=); assert$impl(& ); assert$impl(||); assert$impl(|=); assert$impl(| ); assert$impl(^ );
+#       undef assert$impl
+    };
+}
+
+#endif
+
+/* Public API */
+
+#include <cassert>
+
+#if !(defined(NDEBUG) || defined(_NDEBUG))
+#undef  assert
+#define assert(...) ( bool(__VA_ARGS__) ? \
+        ( assertpp::check(#__VA_ARGS__,__FILE__,__LINE__,1) < __VA_ARGS__ ) : \
+        ( assertpp::check(#__VA_ARGS__,__FILE__,__LINE__,0) < __VA_ARGS__ ) )
+#endif
+
+// -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< --
+
 #ifndef __HEALHPP__
 #define __HEALHPP__
 
@@ -126,6 +224,8 @@
 
 /* public API */
 
+namespace heal {
+
 typedef std::function< int( const std::string &in ) > heal_callback_in;
 typedef std::function< int( std::ostream &headers, std::ostream &content, const std::string &in ) > heal_http_callback;
 
@@ -140,9 +240,6 @@ void add_webmain( int port, heal_http_callback fn );
 
 void die( const std::string &reason, int errorcode = -1 );
 void die( int errorcode = -1, const std::string &reason = std::string() );
-
-void sleep( double seconds );
-void tick();
 
 void breakpoint();
 bool debugger( const std::string &reason = std::string() );
@@ -163,86 +260,6 @@ std::string prompt( const std::string &title = std::string(), const std::string 
 bool is_debug();
 bool is_release();
 bool is_asserting();
-
-size_t get_mem_peak();             // peak of resident set size (physical memory use) measured in bytes, or zero
-size_t get_mem_current();          // curent set size (physical memory use) measured in bytes, or zero
-size_t get_mem_size();             // size of physical memory (RAM) in bytes
-double get_time_thread();          // amount of CPU time used by the current process, in seconds, or -1.0
-double get_time_os();              // real OS time, in seconds, or -1.0
-double get_time_app();             // app time, in seconds, or -1.0
-
-std::string as_human_size( size_t bytes );
-std::string as_human_time( double time );
-std::string as_human_chrono( double time );
-
-struct benchmark : public std::string {
-    double mem = 0;
-    double time = 0;
-    bool cancelled = 0, stopped = 1;
-
-    static std::map< std::string, benchmark > &all() {
-        static std::map< std::string, benchmark > map;
-        return map;
-    }
-
-    benchmark( const char *text = "" ) : std::string(text)
-    {}
-
-    void start() {
-        cancelled = false;
-        stopped = false;
-        double mem;  do { mem = get_mem_current(); } while( !mem );
-        double time; do { time = get_time_app(); } while( time < 0 );
-        this->mem -= mem;
-        this->time -= time;
-    }
-
-    void stop() {
-        stopped = true;
-        double time; do { time = get_time_app(); } while ( time < 0 );
-        double mem;  do { mem = get_mem_current(); } while ( !mem );
-        this->mem += mem;
-        this->time += time;
-    }
-
-    void cancel() {
-        cancelled = true;
-        mem = time = 0;
-        stopped = true;
-    }
-
-    std::string &name() {
-        return *this;
-    }
-    const std::string &name() const {
-        return *this;
-    }
-
-    std::ostream &print( std::ostream &os ) const;
-};
-
-template< std::ostream &OSS = std::cout >
-struct scoped_benchmark : public benchmark {
-    explicit
-    scoped_benchmark( const char *text ) : benchmark(text) {
-        this->start();
-    }
-
-    ~scoped_benchmark() {
-        if( this->cancelled ) {
-            return;
-        }
-        this->stop();
-        this->print( OSS );
-
-        auto &self = this->all()[ this->name() ];
-        self.name() = this->name();
-        self.time += this->time;
-        self.mem  += this->mem;
-    }
-};
-
-std::string top100();
 
 struct callstack /* : public std::vector<const void*> */ {
     enum { max_frames = 128 };
@@ -324,50 +341,6 @@ template<> inline std::string hexdump( const char *obj ) {
 
 std::string timestamp();
 
-bool is_root();
-std::string get_app_path();
-bool add_firewall_rule( const std::string &name, bool on, const std::string &binpath );
-bool add_firewall_rule( const std::string &name, bool on, bool tcp, int port );
-std::string get_pipe( const std::string &cmd, int *retcode = 0 );
+}
 
-#endif
-
-#ifdef assert1
-#   undef assert1
-#endif
-
-#ifdef assert2
-#   undef assert2
-#endif
-
-#ifdef assert3
-#   undef assert3
-#endif
-
-#ifdef assert4
-#   undef assert4
-#endif
-
-#if defined(NDEBUG) || defined(_NDEBUG)
-#   define assert1(A)
-#   define assert2(A,...)
-#   define assert3(A,op,B)
-#   define assert4(A,op,B,...)
-#else
-#   define assert1(A)             assertX( true, A, !=, 00,           0 )
-#   define assert2(A,...)         assertX( true, A, !=, 00, __VA_ARGS__ )
-#   define assert3(A,OP,B)        assertX( true, A, OP,  B,           0 )
-#   define assert4(A,OP,B,...)    assertX( true, A, OP,  B, __VA_ARGS__ )
-#   define assertX(SIGN,A,OP,B,...) [&]() -> bool { \
-        std::stringstream _SS_, _TT_; \
-        auto _A_ = (A); auto _B_ = decltype(_A_)(B); auto _OK_ = ( _A_ OP _B_ ); if( !SIGN ) _OK_ = !_OK_; \
-        _SS_ << ( _OK_ ? "[ OK ]" : "[FAIL]" ) << "Assert "; \
-        _SS_ << " at " __FILE__ ":" << __LINE__; if( !_OK_ ) { std::string _EXPR_; \
-         if( std::string("0") != #__VA_ARGS__ ) _SS_ << " - ", _SS_ << __VA_ARGS__; \
-         _EXPR_  = "\n\t" #A;      _TT_ << "\n\t" << _A_; if( std::string("00") != #B ) {\
-         _EXPR_ += " " #OP " " #B; _TT_ << " " #OP " " << _B_; } \
-         _SS_ << ( _TT_.str() != _EXPR_ ? _EXPR_ : "" ) << _TT_.str(); \
-         _SS_ << "\n\t" << ( _OK_ ^ (!SIGN) ? "true (false expected)" : "false (true expected)" ); \
-         fail( _SS_.str() ); } \
-        return _OK_ ? true : false; }()
 #endif

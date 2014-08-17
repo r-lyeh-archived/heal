@@ -4,24 +4,20 @@ heal
 - Heal is a lightweight C++ library to aid and debug applications. Requires C++11.
 - Heal requires OS dependencies only.
 - Heal has full API support for Windows, for now. Feel free to tweak heal.cpp and add more OSes :)
-- Heal pollutes namespace on purpose. Sorry but I think this is convenient.
-- MIT licensed.
+- Heal pollutes a few macros on purpose. Sorry but I think this is convenient.
+- Heal is MIT licensed.
 
 chain of callbacks
 ------------------
 
 API
 ---
-- `assert1( a == b )`
-- `assert2( a == b, "a must be equal to b" )`
-- `assert3( a, ==, b )`
-- `assert4( a, ==, b, "a must be equal to b" )`. Any assertion fail will invoke `fails` chain of callbacks.
+- `assert(expr)`. Same behavior, extra information.
 - `warn()` @todoc.
 - `fail()` @todoc.
 - `warns(cb)` @todoc.
 - `fails(cb)` @todoc.
 - `add_worker(cb)` @todoc.
-- `add_webmain(int port, cb)` @todoc.
 - `$warning(string)` @todoc.
 - `bool debugger(string reason)` tries to invoke debugger, if possible.
 - `void breakpoint()` breaks execution, if possible.
@@ -50,16 +46,6 @@ offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F [ptr=0014F844 sz=10]
 0014F844 48 65 6c 6c 6f 57 6f 72 6c 64 ?? ?? ?? ?? ?? ?? hex
 ```
 
-- `size_t get_mem_peak_str()`
-- `size_t get_mem_current_str()`
-- `size_t get_mem_size_str()`
-- `double get_time_thread_str()`
-- `double get_time_os_str()`
-- `double get_time_app_str()`
-- `std::string as_human_size(double space)`
-- `std::string as_human_chrono(double time)`
-- `std::string as_human_calendar(double time)`
-
 Macros
 ------
 
@@ -87,7 +73,6 @@ $quote
 $comment
 $uncomment
 
-
 Sample
 ------
 ```c++
@@ -99,8 +84,7 @@ int main()
     if( !is_asserting() )
         errorbox( "Asserts are disabled. No assertions will be perfomed" );
 
-    assert3( 1, <, 2);
-    assert4( 1, <, 2, "This should never happen" );
+    assert( 1 < 2 && "Try to tweak this to see the detailed info" );
 
     std::cout << hexdump(3.14159f) << std::endl;
     std::cout << hexdump("hello world") << std::endl;
