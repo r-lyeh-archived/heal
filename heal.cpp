@@ -33,10 +33,11 @@
 #undef _SECURE_SCL
 #endif
 #define _SECURE_SCL 0
-#ifdef _HAS_ITERATOR_DEBUGGING
-#undef _HAS_ITERATOR_DEBUGGING
+#ifdef _ITERATOR_DEBUG_LEVEL
+#undef _ITERATOR_DEBUG_LEVEL
+#define _ITERATOR_DEBUG_LEVEL 1
 #endif
-#define _HAS_ITERATOR_DEBUGGING 0
+//#define _HAS_ITERATOR_DEBUGGING 0
 
 // Standard headers
 
@@ -1373,7 +1374,7 @@ void add_webmain( int port, heal_http_callback fn ) {
     std::thread( [=]() {
         INIT();
         int s = SOCKET(PF_INET, SOCK_STREAM, IPPROTO_IP);
-
+        if( s < 0 ) return;
         {
             struct sockaddr_in l;
             memset( &l, 0, sizeof(sockaddr_in) );
@@ -1389,6 +1390,7 @@ void add_webmain( int port, heal_http_callback fn ) {
         for( ;; ) {
 
             int c = ACCEPT(s,0,0), o = 0, h[2], hi = 0;
+            if( c < 0 ) continue;
             char b[1024];
             while(hi<2&&o<1024) {
                 int n = READ(c,b+o,sizeof(b)-o);

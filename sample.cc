@@ -36,7 +36,7 @@ int main()
 
         // add a web server, with stats in ajax
         add_webmain( 8080, []( std::ostream &headers, std::ostream &content, const std::string &url ) {
-            if( url.find("/echo") == std::string::npos ) {
+            if( url.find("/echo") != std::string::npos ) {
                 headers << "Content-Type: text/html;charset=UTF-8\r\n";
                 content << html_template << "echo: " << url << std::endl;
                 return 200;
