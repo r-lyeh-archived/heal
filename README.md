@@ -24,7 +24,7 @@ API
 - `string demangle(string symbol)` returns an human-readable mangled-symbol, if possible.
 - `alert(type value,string title)` shows a modal window.
 - `errorbox(string body,string title)` shows an error window.
-- `prompt(string title, string value, string caption)` shows a prompt window.
+- `prompt(string value, string title, string caption)` shows a prompt window.
 - `bool is_asserting()` returns true if assertions are enabled.
 - `bool is_release()` returns true if either `NDEBUG` or `_NDEBUG` preprocessor directives are defined.
 - `bool is_debug()` returns negation of `is_release()`

@@ -255,7 +255,7 @@ void alert( const           int &t, const std::string &title = std::string() );
 void alert( const          char &t, const std::string &title = std::string() );
 void alert( const          bool &t, const std::string &title = std::string() );
 void errorbox( const std::string &body = std::string(), const std::string &title = std::string() );
-std::string prompt( const std::string &title = std::string(), const std::string &current_value = std::string(), const std::string &caption = std::string() );
+std::string prompt( const std::string &current_value = std::string(), const std::string &title = std::string(), const std::string &caption = std::string() );
 
 bool is_debug();
 bool is_release();

@@ -927,7 +927,7 @@ std::string timestamp() {
 
 #if !$on($windows)
 
-std::string prompt( const std::string &title, const std::string &current_value, const std::string &caption )
+std::string prompt( const std::string &current_value, const std::string &title, const std::string &caption )
 {
     std::string out;
 
@@ -972,7 +972,7 @@ std::string prompt( const std::string &title, const std::string &current_value, 
 #   pragma comment(lib,"gdi32.lib")
 $warning("<heal/heal.cpp> says: dialog aware dpi fix (@todo)")
 
-std::string prompt( const std::string &title, const std::string &current_value, const std::string &caption )
+std::string prompt( const std::string &current_value, const std::string &title, const std::string &caption )
 {
     class InputBox
     {
@@ -1028,7 +1028,7 @@ std::string prompt( const std::string &title, const std::string &current_value, 
                     }
                     break;
                 case WM_CLOSE:
-                    self->hide();
+                    self->close();
                     return 0;
                 case WM_DESTROY:
                     self->destroy();

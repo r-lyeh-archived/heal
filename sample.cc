@@ -73,7 +73,7 @@ int main()
     alert( std::ifstream(__FILE__), "current source code" );
     alert( hexdump(3.14159f) );
     alert( hexdump("hello world") );
-    alert( prompt("type a number") );
+    alert( prompt("0", "type a number") );
 
     if( !is_asserting() ) {
         errorbox( "Asserts are disabled. No assertions will be perfomed" );
