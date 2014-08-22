@@ -227,7 +227,6 @@ namespace assertpp {
 namespace heal {
 
 typedef std::function< int( const std::string &in ) > heal_callback_in;
-typedef std::function< int( std::ostream &headers, std::ostream &content, const std::string &in ) > heal_http_callback;
 
 extern std::vector< heal_callback_in > warns;
 extern std::vector< heal_callback_in > fails;
@@ -236,7 +235,6 @@ void warn( const std::string &error );
 void fail( const std::string &error );
 
 void add_worker( heal_callback_in fn );
-void add_webmain( int port, heal_http_callback fn );
 
 void die( const std::string &reason, int errorcode = -1 );
 void die( int errorcode = -1, const std::string &reason = std::string() );

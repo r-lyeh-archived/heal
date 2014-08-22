@@ -158,14 +158,6 @@ std::vector< heal_callback_in > workers( {
         return true;
 } } );
 
-std::vector< heal_http_callback > servers( {
-    // default fallback
-    []( std::ostream &headers, std::ostream &content, const std::string &assertion ) {
-        headers << "Content-Type: text/html;charset=UTF-8\r\n";
-        content << "default fallback" << std::endl;
-        return 200;
-} } );
-
 
 void warn( const std::string &error ) {
     static bool recursive = false;
@@ -1252,101 +1244,6 @@ std::string prompt( const std::string &current_value, const std::string &title, 
 
 #endif
 
-
-
-
-
-
-// Sockets
-
-#if $on($windows)
-
-#   include <winsock2.h>
-#   include <ws2tcpip.h>
-#   include <windows.h>
-
-#   pragma comment(lib,"ws2_32.lib")
-
-#   define INIT()                    do { static WSADATA wsa_data; static const int init = WSAStartup( MAKEWORD(2, 2), &wsa_data ); } while(0)
-#   define SOCKET(A,B,C)             ::socket((A),(B),(C))
-#   define ACCEPT(A,B,C)             ::accept((A),(B),(C))
-#   define CONNECT(A,B,C)            ::connect((A),(B),(C))
-#   define CLOSE(A)                  ::closesocket((A))
-#   define RECV(A,B,C,D)             ::recv((A), (char *)(B), (C), (D))
-#   define READ(A,B,C)               ::recv((A), (char *)(B), (C), (0))
-#   define SELECT(A,B,C,D,E)         ::select((A),(B),(C),(D),(E))
-#   define SEND(A,B,C,D)             ::send((A), (const char *)(B), (int)(C), (D))
-#   define WRITE(A,B,C)              ::send((A), (const char *)(B), (int)(C), (0))
-#   define GETSOCKOPT(A,B,C,D,E)     ::getsockopt((A),(B),(C),(char *)(D), (int*)(E))
-#   define SETSOCKOPT(A,B,C,D,E)     ::setsockopt((A),(B),(C),(char *)(D), (int )(E))
-
-#   define BIND(A,B,C)               ::bind((A),(B),(C))
-#   define LISTEN(A,B)               ::listen((A),(B))
-#   define SHUTDOWN(A)               ::shutdown((A),2)
-#   define SHUTDOWN_R(A)             ::shutdown((A),0)
-#   define SHUTDOWN_W(A)             ::shutdown((A),1)
-
-    namespace
-    {
-        // fill missing api
-
-        enum
-        {
-            F_GETFL = 0,
-            F_SETFL = 1,
-
-            O_NONBLOCK = 128 // dummy
-        };
-
-        int fcntl( int &sockfd, int mode, int value )
-        {
-            if( mode == F_GETFL ) // get socket status flags
-                return 0; // original return current sockfd flags
-
-            if( mode == F_SETFL ) // set socket status flags
-            {
-                u_long iMode = ( value & O_NONBLOCK ? 0 : 1 );
-
-                bool result = ( ioctlsocket( sockfd, FIONBIO, &iMode ) == NO_ERROR );
-
-                return 0;
-            }
-
-            return 0;
-        }
-    }
-
-#else
-
-#   include <fcntl.h>
-#   include <sys/types.h>
-#   include <sys/socket.h>
-#   include <netdb.h>
-#   include <unistd.h>    //close
-
-#   include <arpa/inet.h> //inet_addr
-
-#   define INIT()                    do {} while(0)
-#   define SOCKET(A,B,C)             ::socket((A),(B),(C))
-#   define ACCEPT(A,B,C)             ::accept((A),(B),(C))
-#   define CONNECT(A,B,C)            ::connect((A),(B),(C))
-#   define CLOSE(A)                  ::close((A))
-#   define READ(A,B,C)               ::read((A),(B),(C))
-#   define RECV(A,B,C,D)             ::recv((A), (void *)(B), (C), (D))
-#   define SELECT(A,B,C,D,E)         ::select((A),(B),(C),(D),(E))
-#   define SEND(A,B,C,D)             ::send((A), (const int8 *)(B), (C), (D))
-#   define WRITE(A,B,C)              ::write((A),(B),(C))
-#   define GETSOCKOPT(A,B,C,D,E)     ::getsockopt((int)(A),(int)(B),(int)(C),(      void *)(D),(socklen_t *)(E))
-#   define SETSOCKOPT(A,B,C,D,E)     ::setsockopt((int)(A),(int)(B),(int)(C),(const void *)(D),(int)(E))
-
-#   define BIND(A,B,C)               ::bind((A),(B),(C))
-#   define LISTEN(A,B)               ::listen((A),(B))
-#   define SHUTDOWN(A)               ::shutdown((A),SHUT_RDWR)
-#   define SHUTDOWN_R(A)             ::shutdown((A),SHUT_RD)
-#   define SHUTDOWN_W(A)             ::shutdown((A),SHUT_WR)
-
-#endif
-
 void add_worker( heal_callback_in fn ) {
     static struct once { once() {
         volatile bool installed = false;
@@ -1367,73 +1264,6 @@ void add_worker( heal_callback_in fn ) {
     }} _;
 
     workers.push_back( fn );
-}
-
-void add_webmain( int port, heal_http_callback fn ) {
-
-    std::thread( [=]() {
-        INIT();
-        int s = SOCKET(PF_INET, SOCK_STREAM, IPPROTO_IP);
-        if( s < 0 ) return;
-        {
-            struct sockaddr_in l;
-            memset( &l, 0, sizeof(sockaddr_in) );
-            l.sin_family = AF_INET;
-            l.sin_port = htons(port);
-            l.sin_addr.s_addr = INADDR_ANY;
-            $welse(
-                int r = 1; setsockopt(s,SOL_SOCKET,SO_REUSEADDR,&r,sizeof(r));
-            )
-            BIND(s,(struct sockaddr *)&l,sizeof(l));
-            LISTEN(s,5);
-        }
-        for( ;; ) {
-
-            int c = ACCEPT(s,0,0), o = 0, h[2], hi = 0;
-            if( c < 0 ) continue;
-            char b[1024];
-            while(hi<2&&o<1024) {
-                int n = READ(c,b+o,sizeof(b)-o);
-                if(n<=0) { break; }
-                else {
-                    int i = o;
-                    o+=n;
-                    for(;i<n&&hi<2;i++) {
-                        if(b[i] == '/' || (hi==1&&b[i] == ' ')) { h[hi++] = i; }
-                    }
-                }
-            }
-            if(hi == 2) {
-                b[ o ] = '\0';
-
-                char org = b[h[1]];
-                b[h[1]] = '\0';
-                std::string url( &b[4] ); //skip "GET "
-                b[h[1]] = org;
-
-                std::stringstream headers, content;
-                int httpcode = fn( headers, content, url );
-
-                if( httpcode > 0 ) {
-                    std::string head = std::string() + "HTTP/1.1 " + to_string(httpcode) + " OK\r\n";
-                    std::string header = headers.str();
-                    std::string response = content.str();
-
-                    header += "Content-Length: " + to_string( response.size() ) + "\r\n" +
-                              "\r\n";
-
-                    WRITE( c, head.c_str(), head.size() );
-                    WRITE( c, header.c_str(), header.size() );
-                    WRITE( c, response.c_str(), response.size() );
-                } else {
-                    WRITE( c, "{}", 2 );
-                }
-
-                SHUTDOWN(c);
-                CLOSE(c);
-            }
-        }
-    } ).detach();
 }
 
 }
