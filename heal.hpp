@@ -259,14 +259,26 @@ bool is_debug();
 bool is_release();
 bool is_asserting();
 
+#ifndef HEAL_MAX_TRACES
+#define HEAL_MAX_TRACES 128
+#endif
+
 struct callstack /* : public std::vector<const void*> */ {
-    enum { max_frames = 128 };
+    enum { max_frames = HEAL_MAX_TRACES };
     std::vector<void *> frames;
     callstack( bool autosave = false );
     size_t space() const;
     void save( unsigned frames_to_skip = 0 );
     std::vector<std::string> unwind( unsigned from = 0, unsigned to = ~0 ) const;
     std::vector<std::string> str( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 );
+    std::string flat( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 ) {
+        auto vec = str( format12, skip_begin );
+        std::string str;
+        for( auto &s : vec ) {
+            str += s;
+        }
+        return str;
+    }
 };
 
 template<typename T>
