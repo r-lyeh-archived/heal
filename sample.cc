@@ -1,3 +1,5 @@
+// sample requires C++11. sorry :)
+
 #include <stdlib.h>
 #include <time.h>
 
@@ -23,16 +25,6 @@ int main()
     // print current stack trace
     for( auto &line : stacktrace("\1) \2") ) {
         std::cout << line << std::endl;
-    }
-
-    // measure scope
-    {
-        // add a parallel worker
-        add_worker( []( const std::string &text ) {
-            static int i = 0;
-            std::cout << ( std::string("\r") + "\\|/-"[ (++i) % 4 ] ) << std::flush;
-            return true;
-        } );
     }
 
     // initialize chain of warns and fails

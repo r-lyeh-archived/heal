@@ -1,80 +1,13 @@
 heal
 ====
 
-- Heal is a lightweight C++ library to aid and debug applications. Requires C++11.
-- Heal requires OS dependencies only.
-- Heal has full API support for Windows, for now. Feel free to tweak heal.cpp and add more OSes :)
+- Heal is a lightweight C++ library to aid and debug applications. Requires C++11 (or C++03 with boost at least).
+- Heal is stand-alone. OS dependencies only.
+- Heal is cross-platform. Full API is only supported under Windows, for now. Feel free to tweak heal.cpp and add more OSes :)
 - Heal pollutes a few macros on purpose. Sorry but I think this is convenient.
 - Heal is MIT licensed.
 
-chain of callbacks
-------------------
-
-API
----
-- `assert(expr)`. Same behavior, extra information.
-- `warn()` @todoc.
-- `fail()` @todoc.
-- `warns(cb)` @todoc.
-- `fails(cb)` @todoc.
-- `add_worker(cb)` @todoc.
-- `$warning(string)` @todoc.
-- `bool debugger(string reason)` tries to invoke debugger, if possible.
-- `void breakpoint()` breaks execution, if possible.
-- `string demangle(string symbol)` returns an human-readable mangled-symbol, if possible.
-- `alert(type value,string title)` shows a modal window.
-- `errorbox(string body,string title)` shows an error window.
-- `prompt(string value, string title, string caption)` shows a prompt window.
-- `bool is_asserting()` returns true if assertions are enabled.
-- `bool is_release()` returns true if either `NDEBUG` or `_NDEBUG` preprocessor directives are defined.
-- `bool is_debug()` returns negation of `is_release()`
-- `callstack()` @todoc.
-- `stackstring()` @todoc.
-- `stacktrace()` returns a vector of strings that contains full current callstack. Output can be formatted. Possible output for `std::cout << stacktrace()`:
-```
-#0 stacktrace (heal.cpp, line 592)
-#1 main (sample.cc, line 14)
-#2 __tmainCRTStartup (f:\dd\vctools\crt_bld\self_x86\crt\src\crt0.c, line 240)
-#3 BaseThreadInitThunk
-#4 RtlInitializeExceptionChain
-#5 RtlInitializeExceptionChain
-```
-- `hexdump()` returns an std::string hexdump of given memory pointers. Possible output for `std::cout << hexdump(memory)`:
-```
-offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F [ptr=0014F844 sz=10]
-0014F844  H  e  l  l  o  W  o  r  l  d  .  .  .  .  .  . asc
-0014F844 48 65 6c 6c 6f 57 6f 72 6c 64 ?? ?? ?? ?? ?? ?? hex
-```
-
-Macros
-------
-
-$yes
-$no
-
-$windows, $welse
-$linux, $lelse
-$apple, $aelse
-$msvc, $melse
-$gnuc, $gelse
-$clang, $celse
-$throw, $telse
-$warning
-$debug, $release
-$undefined_compiler
-
-$on
-$is
-$has
-$undefined_os
-
-$quote
-
-$comment
-$uncomment
-
-Sample
-------
+### Sample
 ```c++
 #include <iostream>
 #include "heal.hpp"
@@ -99,8 +32,7 @@ int main()
 }
 ```
 
-Possible output
----------------
+### Possible output
 ```
 D:\prj\heal>cl sample.cc heal.cpp /Zi
 D:\prj\heal>sample.exe
@@ -129,4 +61,72 @@ Something went wrong: debugger() didnt work
 #5 RtlInitializeExceptionChain
 #6 RtlInitializeExceptionChain
 D:\prj\heal>
+```
+
+### API
+- `assert(expr)`. Same behavior, extra information.
+- `warn()` @todoc.
+- `fail()` @todoc.
+- `warns(cb)` @todoc.
+- `fails(cb)` @todoc.
+- `$warning(string)` @todoc.
+- `bool debugger(string reason)` tries to invoke debugger, if possible.
+- `void breakpoint()` breaks execution, if possible.
+- `string demangle(string symbol)` returns an human-readable mangled-symbol, if possible.
+- `alert(type value,string title)` shows a modal window.
+- `errorbox(string body,string title)` shows an error window.
+- `prompt(string value, string title, string caption)` shows a prompt window.
+- `bool is_asserting()` returns true if assertions are enabled.
+- `bool is_release()` returns true if either `NDEBUG` or `_NDEBUG` preprocessor directives are defined.
+- `bool is_debug()` returns negation of `is_release()`
+- `safestring class` @todoc.
+- `callstack()` @todoc.
+- `stackstring()` @todoc.
+- `stacktrace()` returns a vector of strings that contains full current callstack. Output can be formatted. Possible output for `std::cout << stacktrace()`:
+```
+#0 stacktrace (heal.cpp, line 592)
+#1 main (sample.cc, line 14)
+#2 __tmainCRTStartup (f:\dd\vctools\crt_bld\self_x86\crt\src\crt0.c, line 240)
+#3 BaseThreadInitThunk
+#4 RtlInitializeExceptionChain
+#5 RtlInitializeExceptionChain
+```
+- `hexdump()` returns an std::string hexdump of given memory pointers. Possible output for `std::cout << hexdump(memory)`:
+```
+offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F [ptr=0014F844 sz=10]
+0014F844  H  e  l  l  o  W  o  r  l  d  .  .  .  .  .  . asc
+0014F844 48 65 6c 6c 6f 57 6f 72 6c 64 ?? ?? ?? ?? ?? ?? hex
+```
+
+### API:
+@todoc, chain of callbacks
+
+### Macros
+```
+$yes
+$no
+
+$windows, $welse
+$linux, $lelse
+$apple, $aelse
+$msvc, $melse
+$gnuc, $gelse
+$clang, $celse
+$throw, $telse
+$warning
+$debug, $release
+$undefined_compiler
+
+$on
+$is
+$has
+$undefined_os
+
+$quote
+
+$comment
+$uncomment
+
+$cpp11
+$cpp03
 ```

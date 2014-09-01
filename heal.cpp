@@ -50,13 +50,10 @@
 #include <algorithm>
 #include <iostream>
 #include <map>
-#include <mutex>
 #include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <thread>
-#include <vector>
 
 // System headers
 
@@ -126,38 +123,28 @@
 
 namespace heal {
 
-std::vector< heal_callback_in > warns( {
-    // default fallback
-    []( const std::string &text ) {
+std::vector< heal_callback_in > warns(1);
+std::vector< heal_callback_in > fails(1);
 
+namespace {
+    bool default_warn( const std::string &text ) {
         if( text.size() ) {
             alert( text, "Warning" );
         }
-
-        return true;
-} } );
-
-std::vector< heal_callback_in > fails( {
-    // default fallback
-    []( const std::string &text ) {
-
+        return true;       
+    }
+    bool default_fail( const std::string &text ) {
         if( text.size() ) {
             errorbox( text, "Error" );
         }
-
         if( !debugger() ) {
             alert( "Could not launch debugger" );
         }
-
         return true;
-} } );
-
-std::vector< heal_callback_in > workers( {
-    // default fallback
-    []( const std::string &text ) {
-        return true;
-} } );
-
+    }
+    const bool init_warns = (warns[0] = default_warn, true);
+    const bool init_fails = (fails[0] = default_fail, true);
+}
 
 void warn( const std::string &error ) {
     static bool recursive = false;
@@ -464,7 +451,6 @@ void errorbox( const  std::string &body, const std::string &title ) { show( body
 // DEMANGLE
 
 #if 1
-#   // MSVC tweaks
 #   // Disable optimizations. Nothing gets inlined. You get pleasant stacktraces to work with.
 #   // This is the default setting.
 #   ifdef _MSC_VER
@@ -474,7 +460,7 @@ void errorbox( const  std::string &body, const std::string &title ) { show( body
 #   endif
 #else
 #   // Enable optimizations. HEAL performs better. However, functions get inlined (specially new/delete operators).
-#   // This behaviour is disabled by default, since you get weird stacktraces.
+#   // This behaviour is disabled by default, since you may get wrong stacktraces.
 #   ifdef _MSC_VER
 #       pragma optimize( "gsy", on )        // enable optimizations on msvc
 #   else
@@ -482,74 +468,6 @@ void errorbox( const  std::string &body, const std::string &title ) { show( body
 #       pragma optimize                     // enable optimizations on a few other compilers, hopefully
 #   endif
 #endif
-
-namespace heal
-{
-    class string : public std::string
-    {
-        public:
-
-        string() : std::string()
-        {}
-
-        template <typename T>
-        /* explicit */ string( const T &t ) : std::string()
-        {
-            std::stringstream ss;
-            if( ss << t )
-                this->assign( ss.str() );
-        }
-
-        template <typename T1, typename T2 = std::string, typename T3 = std::string>
-        explicit string( const char *fmt123, const T1 &_t1, const T2 &_t2 = T2(), const T3 &_t3 = T3() ) : std::string()
-        {
-            string t1( _t1 );
-            string t2( _t2 );
-            string t3( _t3 );
-
-            string &s = *this;
-
-            while( *fmt123 )
-            {
-                if( *fmt123 == '\1' )
-                    s += t1;
-                else
-                if( *fmt123 == '\2' )
-                    s += t2;
-                else
-                if( *fmt123 == '\3' )
-                    s += t3;
-                else
-                    s += *fmt123;
-
-                fmt123++;
-            }
-        }
-
-        size_t count( const std::string &substr ) const
-        {
-            size_t n = 0;
-            std::string::size_type pos = 0;
-            while( (pos = this->find( substr, pos )) != std::string::npos ) {
-                n++;
-                pos += substr.size();
-            }
-            return n;
-        }
-
-        std::string replace( const std::string &target, const std::string &replacement ) const {
-            size_t found = 0;
-            std::string s = *this;
-
-            while( ( found = s.find( target, found ) ) != string::npos ) {
-                s.replace( found, target.length(), replacement );
-                found += replacement.length();
-            }
-
-            return s;
-        }
-    };
-}
 
 std::string demangle( const std::string &mangled ) {
     $linux({
@@ -562,16 +480,16 @@ std::string demangle( const std::string &mangled ) {
         return demangled;
         )
         $yes( /* addr2line way. wip & quick proof-of-concept. clean up required. */
-        heal::string binary = mangled.substr( 0, mangled.find_first_of('(') );
-        heal::string address = mangled.substr( mangled.find_last_of('[') + 1 );
+        heal::safestring binary = mangled.substr( 0, mangled.find_first_of('(') );
+        heal::safestring address = mangled.substr( mangled.find_last_of('[') + 1 );
         address.pop_back();
-        heal::string cmd( "addr2line -e \1 \2", binary, address );
+        heal::safestring cmd( "addr2line -e \1 \2", binary, address );
         FILE *fp = popen( cmd.c_str(), "r" );
         if (!fp) { return mangled; }
         char demangled[1024];
         char *line_p = fgets(demangled, sizeof(demangled), fp);
         pclose(fp);
-        heal::string demangled_(demangled);
+        heal::safestring demangled_(demangled);
         if( demangled_.size() ) demangled_.pop_back(); //remove \n
         return demangled_.size() && demangled_.at(0) == '?' ? mangled : demangled_;
         )
@@ -585,7 +503,7 @@ std::string demangle( const std::string &mangled ) {
             return mangled;
         int status = 0;
         char *demangled = abi::__cxa_demangle(funcname.c_str(), NULL, NULL, &status);
-        heal::string out( mangled );
+        heal::safestring out( mangled );
         if( status == 0 && demangled )
             out = out.replace( funcname, demangled );
         if( demangled ) free( demangled );
@@ -716,7 +634,7 @@ std::string demangle( const std::string &mangled ) {
                             line64 = line64_blank;
                             DWORD displacement = 0;
                             if( SymGetLineFromAddr64( process, (DWORD64) frames[i], &displacement, &line64 ) ) {
-                                backtraces[i] = heal::string( "\1 (\2, line \3)", symbol64->Name, line64.FileName, line64.LineNumber );
+                                backtraces[i] = heal::safestring( "\1 (\2, line \3)", symbol64->Name, line64.FileName, line64.LineNumber );
                             } else {
                                 backtraces[i] = symbol64->Name;
                             }
@@ -753,7 +671,7 @@ std::string demangle( const std::string &mangled ) {
             std::vector<std::string> stacktrace = unwind( skip_begin );
 
             for( size_t i = 0, end = stacktrace.size(); i < end; i++ )
-                stacktrace[i] = heal::string( format12, i + 1, stacktrace[i] );
+                stacktrace[i] = heal::safestring( format12, i + 1, stacktrace[i] );
 
             return stacktrace;
         }
@@ -764,9 +682,9 @@ std::vector<std::string> stacktrace( const char *format12, size_t skip_initial )
 
 std::string stackstring( const char *format12, size_t skip_initial ) {
     std::string out;
-    auto stack = stacktrace( format12, skip_initial );
-    for( auto &line : stack ) {
-        out += line;
+    std::vector<std::string> stack = stacktrace( format12, skip_initial );
+    for( std::vector<std::string>::const_iterator it = stack.begin(), end = stack.end(); it != end; ++it ) {
+        out += *it;
     }
     return out;
 }
@@ -1243,28 +1161,6 @@ std::string prompt( const std::string &current_value, const std::string &title, 
 }
 
 #endif
-
-void add_worker( heal_callback_in fn ) {
-    static struct once { once() {
-        volatile bool installed = false;
-        std::thread( [&]() {
-            installed = true;
-            for(;;) {
-                for( auto &wk : workers ) {
-                    wk( std::string() );
-                }
-                $windows( Sleep( 1000/60 ) );
-                $welse( usleep( 1000000/60 ) );
-            }
-        } ).detach();
-        while( !installed ) {
-            $windows( Sleep( 1000 ) );
-            $welse( usleep( 1000000 ) );
-        }
-    }} _;
-
-    workers.push_back( fn );
-}
 
 }
 

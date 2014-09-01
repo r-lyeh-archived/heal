@@ -39,13 +39,13 @@
 
 namespace assertpp {
     class check {
-        int ok;
+        bool ok;
         std::deque< std::string > xpr;
         template<typename T> static std::string to_str( const T &t ) { std::stringstream ss; return ss << t ? ss.str() : "??"; }
     public:
         check( const char *const text, const char *const file, int line, bool result )
-        :   xpr( {std::string(file) + ':' + to_str(line), "", text, "" } ), ok(result)
-        {}
+        :   xpr(4), ok(result)
+        { xpr[0] = std::string(file) + ':' + to_str(line); xpr[2] = text; }
         ~check() {
             if( xpr.empty() ) return;
             operator bool();
@@ -69,11 +69,11 @@ namespace assertpp {
         template<typename T> check &operator OP( const T &rhs         ) { return xpr[3] += " "#OP" " + to_str(rhs), *this; } \
         template<unsigned N> check &operator OP( const char (&rhs)[N] ) { return xpr[3] += " "#OP" " + to_str(rhs), *this; }
         operator bool() {
-            return xpr.size() >= 3 && xpr[3].size() >= 6 && [&]() -> bool {
+            if( xpr.size() >= 3 && xpr[3].size() >= 6 ) {
                 char sign = xpr[3].at(xpr[3].size()/2+1);
                 bool equal = xpr[3].substr( 4 + xpr[3].size()/2 ) == xpr[3].substr( 3, xpr[3].size()/2 - 3 );
-                return ok = ( sign == '=' ? equal : ( sign == '!' ? !equal : ok ) );
-            }(), ok;
+                ok = ( sign == '=' ? equal : ( sign == '!' ? !equal : ok ) );
+            } return ok;
         }
         assert$impl( <); assert$impl(<=); assert$impl( >); assert$impl(>=); assert$impl(!=); assert$impl(==); assert$impl(^=);
         assert$impl(&&); assert$impl(&=); assert$impl(& ); assert$impl(||); assert$impl(|=); assert$impl(| ); assert$impl(^ );
@@ -101,13 +101,25 @@ namespace assertpp {
 
 #include <stdio.h>
 
-#include <functional>
 #include <iostream>
 #include <istream>
 #include <map>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#if (__cplusplus > 199711L) || (defined(_MSC_VER) && (_MSC_VER >= 1700))
+#include <functional>
+#define $cpp11          $yes
+#define $cpp03          $no
+#else
+#include <boost/function.hpp>
+#define $cpp11          $no
+#define $cpp03          $yes
+namespace std {
+    using boost::function;
+}
+#endif
 
 // OS utils. Here is where the fun starts... good luck
 
@@ -272,10 +284,10 @@ struct callstack /* : public std::vector<const void*> */ {
     std::vector<std::string> unwind( unsigned from = 0, unsigned to = ~0 ) const;
     std::vector<std::string> str( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 );
     std::string flat( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 ) {
-        auto vec = str( format12, skip_begin );
+        std::vector<std::string> vec = str( format12, skip_begin );
         std::string str;
-        for( auto &s : vec ) {
-            str += s;
+        for( std::vector<std::string>::iterator it = vec.begin(), end = vec.end(); it != end; ++it ) {
+            str += *it;
         }
         return str;
     }
@@ -300,9 +312,11 @@ std::string hexdump( const void *data, size_t num_bytes, const void *self = 0 );
 template<typename T> inline std::string hexdump( const T& obj ) {
     return hexdump( obj.data(), obj.size() * sizeof(*obj.begin()), &obj );
 }
+$cpp11(
 template<> inline std::string hexdump( const std::nullptr_t &obj ) {
     return hexdump( 0,0,0 );
 }
+)
 template<> inline std::string hexdump( const char &obj ) {
     return hexdump( &obj, sizeof(obj), &obj );
 }
@@ -351,6 +365,192 @@ template<> inline std::string hexdump( const char *obj ) {
 
 std::string timestamp();
 
+}
+
+namespace heal {
+
+    // safestring is a string replacement that does not rely on stringstream
+    // this is actually safer on corner cases, like crashes, exception unwinding and in exit conditions
+    class safestring : public std::string
+    {
+        public:
+
+        // basic constructors
+
+        safestring() : std::string()
+        {}
+
+        template<size_t N>
+        safestring( const char (&cstr)[N] ) : std::string( cstr )
+        {}
+
+        // constructor sugars
+
+#if 0
+        // version that may crash on /MT on destructors
+        // (just because it depends on std::locale which may be deinitialized before crashing code)
+        template <typename T>
+        /* explicit */ safestring( const T &t ) : std::string()
+        {
+            std::stringstream ss;
+            ss.precision( std::numeric_limits< long double >::digits10 + 1 );
+            if( ss << t )
+                this->assign( ss.str() );
+        }
+#else
+        template<typename T>
+        safestring( const T &t ) : std::string( (std::string)(t) ) 
+        {}
+        safestring( const std::string &t ) : std::string( t ) 
+        {}
+
+        safestring( const int &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%d", t ) > 0 ) this->assign(buf);
+        }
+        safestring( const unsigned long &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%d", t ) > 0 ) this->assign(buf);
+        }
+        safestring( const size_t &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%d", t ) > 0 ) this->assign(buf);
+        }
+
+        safestring( const float &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%f", t ) > 0 ) this->assign(buf);
+        }
+        safestring( const double &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%f", t ) > 0 ) this->assign(buf);
+        }
+
+        safestring( const char *t ) : std::string( t ? t : "" ) 
+        {}
+        safestring( void *t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%p", t ) > 0 ) this->assign(buf);
+        }
+
+        safestring( const void *t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%p", t ) > 0 ) this->assign(buf);
+        }
+        safestring( char *t ) : std::string( t ? t : "" ) 
+        {}
+#endif
+
+        // extended constructors; safe formatting
+
+        private:
+        template<unsigned N>
+        std::string &safefmt( const std::string &fmt, std::string (&t)[N] ) {
+            for( std::string::const_iterator it = fmt.begin(), end = fmt.end(); it != end; ++it ) {
+                unsigned index(*it);
+                if( index <= N ) t[0] += t[index];
+                else t[0] += *it;
+            }
+            return t[0];
+        }
+        public:
+
+        template< typename T1 >
+        safestring( const std::string &fmt, const T1 &t1 ) : std::string() {
+            std::string t[] = { std::string(), safestring(t1) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        template< typename T1, typename T2 >
+        safestring( const std::string &fmt, const T1 &t1, const T2 &t2 ) : std::string() {
+            std::string t[] = { std::string(), safestring(t1), safestring(t2) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        template< typename T1, typename T2, typename T3 >
+        safestring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3 ) : std::string() {
+            std::string t[] = { std::string(), safestring(t1), safestring(t2), safestring(t3) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        template< typename T1, typename T2, typename T3, typename T4 >
+        safestring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4 ) : std::string() {
+            std::string t[] = { std::string(), safestring(t1), safestring(t2), safestring(t3), safestring(t4) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        template< typename T1, typename T2, typename T3, typename T4, typename T5 >
+        safestring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4, const T5 &t5 ) : std::string() {
+            std::string t[] = { std::string(), safestring(t1), safestring(t2), safestring(t3), safestring(t4), safestring(t5) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        template< typename T1, typename T2, typename T3, typename T4, typename T5, typename T6 >
+        safestring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4, const T5 &t5, const T6 &t6 ) : std::string() {
+            std::string t[] = { std::string(), safestring(t1), safestring(t2), safestring(t3), safestring(t4), safestring(t5), safestring(t6) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        template< typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7 >
+        safestring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4, const T5 &t5, const T6 &t6, const T7 &t7 ) : std::string() {
+            std::string t[] = { std::string(), safestring(t1), safestring(t2), safestring(t3), safestring(t4), safestring(t5), safestring(t6), safestring(t7) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        // chaining operators
+
+        template< typename T >
+        safestring &operator +=( const T &t ) {
+            return append( safestring(t) ), *this;
+        }
+
+        template< typename T >
+        safestring &operator <<( const T &t ) {
+            return append( safestring(t) ), *this;
+        }
+
+        safestring &operator <<( std::ostream &( *pf )(std::ostream &) ) {
+            return *pf == static_cast<std::ostream& ( * )(std::ostream&)>( std::endl ) ? (*this) += "\n", *this : *this;
+        }
+
+        // assignment sugars
+
+        template< typename T >
+        safestring& operator=( const T &t ) {
+            if( &t != this ) {
+                *this = safestring(t);
+            }
+            return *this;
+        }
+
+        safestring &operator=( const char *t ) {
+            return assign( t ? t : "" ), *this;
+        }
+
+        std::string str() const {
+            return *this;
+        }
+
+        size_t count( const std::string &substr ) const {
+            size_t n = 0;
+            std::string::size_type pos = 0;
+            while( (pos = this->find( substr, pos )) != std::string::npos ) {
+                n++;
+                pos += substr.size();
+            }
+            return n;
+        }
+
+        safestring replace( const std::string &target, const std::string &replacement ) const {
+            size_t found = 0;
+            safestring s = *this;
+            while( ( found = s.find( target, found ) ) != std::string::npos ) {
+                s.std::string::replace( found, target.length(), replacement );
+                found += replacement.length();
+            }
+            return s;
+        }
+    };   
 }
 
 #endif
