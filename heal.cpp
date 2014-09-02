@@ -667,8 +667,9 @@ std::string demangle( const std::string &mangled ) {
             return backtraces;
         }
 
-        std::vector<std::string> callstack::str( const char *format12, size_t skip_begin ) {
-            std::vector<std::string> stacktrace = unwind( skip_begin );
+        std::vector<std::string> callstack::str( const char *format12, size_t skip_begin ) const {
+            callstack copy = *this;
+            std::vector<std::string> stacktrace = copy.unwind( skip_begin );
 
             for( size_t i = 0, end = stacktrace.size(); i < end; i++ )
                 stacktrace[i] = heal::safestring( format12, i + 1, stacktrace[i] );

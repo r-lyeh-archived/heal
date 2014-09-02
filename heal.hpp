@@ -282,11 +282,11 @@ struct callstack /* : public std::vector<const void*> */ {
     size_t space() const;
     void save( unsigned frames_to_skip = 0 );
     std::vector<std::string> unwind( unsigned from = 0, unsigned to = ~0 ) const;
-    std::vector<std::string> str( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 );
-    std::string flat( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 ) {
+    std::vector<std::string> str( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 ) const;
+    std::string flat( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 ) const {
         std::vector<std::string> vec = str( format12, skip_begin );
         std::string str;
-        for( std::vector<std::string>::iterator it = vec.begin(), end = vec.end(); it != end; ++it ) {
+        for( std::vector<std::string>::const_iterator it = vec.begin(), end = vec.end(); it != end; ++it ) {
             str += *it;
         }
         return str;
