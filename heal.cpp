@@ -920,13 +920,13 @@ std::string prompt( const std::string &current_value, const std::string &title, 
         static LRESULT CALLBACK CIB_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         {
             InputBox *self;
-            self = (InputBox *)GetWindowLong(hWnd, GWL_USERDATA);
+            self = (InputBox *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 
             switch (msg)
             {
                 case WM_CREATE:
                     self = (InputBox *) ((CREATESTRUCT *)lParam)->lpCreateParams;
-                    SetWindowLong(hWnd, GWL_USERDATA, (long)self);
+                    SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)self);
                     self->create(hWnd);
                 break;
                 case WM_COMMAND:
@@ -955,11 +955,11 @@ std::string prompt( const std::string &current_value, const std::string &title, 
             hwndOk(0),
             hwndCancel(0),
             hwndEditBox(0),
-            szInputText(""),
+            szInputText(0),
             wInputMaxLength(0), wInputLength(0),
             bRegistered(false),
             bResult(false),
-            hThisInstance(0)
+            hThisInstance(hInst)
         {
             WNDCLASSEXA wndInputBox;
             RECT rect;
@@ -1030,7 +1030,7 @@ std::string prompt( const std::string &current_value, const std::string &title, 
             hwndInputBox = hwndNew;
 
             NONCLIENTMETRICS ncm;
-            ncm.cbSize = sizeof(NONCLIENTMETRICS) - sizeof(ncm.iPaddedBorderWidth);
+            ncm.cbSize = sizeof(NONCLIENTMETRICS);
 
             if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &ncm, 0))
             {
