@@ -82,6 +82,8 @@ D:\prj\heal>
 - `safestring class` @todoc.
 - `callstack()` @todoc.
 - `stackstring()` @todoc.
+- `sfstring()` class @todoc.
+- `sfstrings()` class @todoc.
 - `stacktrace()` returns a vector of strings that contains full current callstack. Output can be formatted. Possible output for `std::cout << stacktrace()`:
 ```
 #0 stacktrace (heal.cpp, line 592)
@@ -109,18 +111,21 @@ $no
 $windows, $welse
 $linux, $lelse
 $apple, $aelse
+$undefined_os
+
 $msvc, $melse
 $gnuc, $gelse
 $clang, $celse
+$undefined_compiler
+
 $throw, $telse
+
 $warning
 $debug, $release
-$undefined_compiler
 
 $on
 $is
 $has
-$undefined_os
 
 $quote
 
@@ -129,4 +134,6 @@ $uncomment
 
 $cpp11
 $cpp03
+
+$tls(x)
 ```

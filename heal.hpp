@@ -107,19 +107,32 @@ namespace assertpp {
 #include <sstream>
 #include <string>
 #include <vector>
+#include <deque>
 
-#if (__cplusplus > 199711L) || (defined(_MSC_VER) && (_MSC_VER >= 1700))
-#include <functional>
-#define $cpp11          $yes
-#define $cpp03          $no
-#else
-#include <boost/function.hpp>
+#if (__cplusplus < 201103L && !defined(_MSC_VER)) || (defined(_MSC_VER) && (_MSC_VER < 1700)) || (defined(__GLIBCXX__) && __GLIBCXX__ < 20130322L)
+#include <boost/function.hpp> // if old libstdc++ or msc libs are found, use boost::function
 #define $cpp11          $no
 #define $cpp03          $yes
 namespace std {
     using boost::function;
 }
+#else
+#include <functional>         // else assume modern c++11 and use std::function<> instead
+#define $cpp11          $yes
+#define $cpp03          $no
 #endif
+
+
+// Thread Local Storage 
+
+#if defined(__MINGW32__) || defined(__SUNPRO_C) || defined(__xlc__) || defined(__GNUC__) || defined(__clang__) || defined(__GNUC__) // __INTEL_COMPILER on linux
+//   MingW, Solaris Studio C/C++, IBM XL C/C++,[3] GNU C,[4] Clang[5] and Intel C++ Compiler (Linux systems)
+#    define $tls(x) __thread x
+#else
+//   Visual C++,[7] Intel C/C++ (Windows systems),[8] C++Builder, and Digital Mars C++
+#    define $tls(x) __declspec(thread) x
+#endif
+
 
 // OS utils. Here is where the fun starts... good luck
 
@@ -164,7 +177,7 @@ namespace std {
 #   define $debug     $yes
 #endif
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__MINGW32__)
 #   define $gnuc      $yes
 #   define $gelse     $no
 #else
@@ -221,18 +234,20 @@ namespace std {
 
 // create a $warning(...) macro
 // usage: $warning("this is shown at compile time")
-#define $heal$todo$stringize$impl(X) #X
-#define $heal$todo$stringize(X) $heal$todo$stringize$impl(X)
 #if $on($msvc)
-#   define $heal$todo$message(msg) __FILE__ "(" $heal$todo$stringize(__LINE__)") : $warning - " msg " - [ "__FUNCTION__ " ]"
-#   define $warning(msg) __pragma( message( $heal$todo$message(msg) ) )
+#   define $warning(msg) __pragma( message( msg ) )
 #elif $on($gnuc) || $on($clang)
-#   define $heal$todo$message(msg) __FILE__ "(" $heal$todo$stringize(__LINE__)") : $warning - " msg " - [ "__func__ " ]"
-#   define $heal$todo$message$impl(msg) _Pragma(#msg)
-#   define $warning(msg) $heal$todo$message$impl( message( $heal$todo$message(msg) ) )
+#   define $warning$message$impl(msg) _Pragma(#msg)
+#   define $warning(msg) $warning$message$impl( message( msg ) )
 #else
 #   define $warning(msg)
 #endif
+
+// create a $warning(...) macro
+// usage: $warning("this is shown at compile time")
+#define $heal$todo$stringize$impl(X) #X
+#define $heal$todo$stringize(X) $heal$todo$stringize$impl(X)
+#define $todo(...) $warning( __FILE__ "(" $heal$todo$stringize(__LINE__)") : $todo - " #__VA_ARGS__ " - [ "__func__ " ]" )
 
 /* public API */
 
@@ -283,14 +298,7 @@ struct callstack /* : public std::vector<const void*> */ {
     void save( unsigned frames_to_skip = 0 );
     std::vector<std::string> unwind( unsigned from = 0, unsigned to = ~0 ) const;
     std::vector<std::string> str( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 ) const;
-    std::string flat( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 ) const {
-        std::vector<std::string> vec = str( format12, skip_begin );
-        std::string str;
-        for( std::vector<std::string>::const_iterator it = vec.begin(), end = vec.end(); it != end; ++it ) {
-            str += *it;
-        }
-        return str;
-    }
+    std::string flat( const char *format12 = "#\1 \2\n", size_t skip_begin = 0 ) const;
 };
 
 template<typename T>
@@ -369,19 +377,19 @@ std::string timestamp();
 
 namespace heal {
 
-    // safestring is a string replacement that does not rely on stringstream
+    // sfstring is a safe string replacement that does not rely on stringstream
     // this is actually safer on corner cases, like crashes, exception unwinding and in exit conditions
-    class safestring : public std::string
+    class sfstring : public std::string
     {
         public:
 
         // basic constructors
 
-        safestring() : std::string()
+        sfstring() : std::string()
         {}
 
         template<size_t N>
-        safestring( const char (&cstr)[N] ) : std::string( cstr )
+        sfstring( const char (&cstr)[N] ) : std::string( cstr )
         {}
 
         // constructor sugars
@@ -390,7 +398,7 @@ namespace heal {
         // version that may crash on /MT on destructors
         // (just because it depends on std::locale which may be deinitialized before crashing code)
         template <typename T>
-        /* explicit */ safestring( const T &t ) : std::string()
+        /* explicit */ sfstring( const T &t ) : std::string()
         {
             std::stringstream ss;
             ss.precision( std::numeric_limits< long double >::digits10 + 1 );
@@ -399,45 +407,51 @@ namespace heal {
         }
 #else
         template<typename T>
-        safestring( const T &t ) : std::string( (std::string)(t) ) 
+        sfstring( const T &t ) : std::string( std::string(t) ) 
         {}
-        safestring( const std::string &t ) : std::string( t ) 
+        sfstring( const std::string &t ) : std::string( t ) 
         {}
 
-        safestring( const int &t ) : std::string() {
+        sfstring( const int &t ) : std::string() {
             char buf[128];
             if( sprintf(buf, "%d", t ) > 0 ) this->assign(buf);
         }
-        safestring( const unsigned long &t ) : std::string() {
+        sfstring( const unsigned long &t ) : std::string() {
             char buf[128];
-            if( sprintf(buf, "%d", t ) > 0 ) this->assign(buf);
+            if( sprintf(buf, "%lu", t ) > 0 ) this->assign(buf);
         }
-        safestring( const size_t &t ) : std::string() {
+        sfstring( const unsigned long long &t ) : std::string() {
             char buf[128];
-            if( sprintf(buf, "%d", t ) > 0 ) this->assign(buf);
+            if( sprintf(buf, "%llu", t ) > 0 ) this->assign(buf);
         }
+$msvc(
+        sfstring( const size_t &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%lu", t ) > 0 ) this->assign(buf);
+        }
+)
 
-        safestring( const float &t ) : std::string() {
+        sfstring( const float &t ) : std::string() {
             char buf[128];
             if( sprintf(buf, "%f", t ) > 0 ) this->assign(buf);
         }
-        safestring( const double &t ) : std::string() {
+        sfstring( const double &t ) : std::string() {
             char buf[128];
             if( sprintf(buf, "%f", t ) > 0 ) this->assign(buf);
         }
 
-        safestring( const char *t ) : std::string( t ? t : "" ) 
+        sfstring( const char *t ) : std::string( t ? t : "" ) 
         {}
-        safestring( void *t ) : std::string() {
+        sfstring( void *t ) : std::string() {
             char buf[128];
             if( sprintf(buf, "%p", t ) > 0 ) this->assign(buf);
         }
 
-        safestring( const void *t ) : std::string() {
+        sfstring( const void *t ) : std::string() {
             char buf[128];
             if( sprintf(buf, "%p", t ) > 0 ) this->assign(buf);
         }
-        safestring( char *t ) : std::string( t ? t : "" ) 
+        sfstring( char *t ) : std::string( t ? t : "" ) 
         {}
 #endif
 
@@ -456,74 +470,74 @@ namespace heal {
         public:
 
         template< typename T1 >
-        safestring( const std::string &fmt, const T1 &t1 ) : std::string() {
-            std::string t[] = { std::string(), safestring(t1) };
+        sfstring( const std::string &fmt, const T1 &t1 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1) };
             assign( safefmt( fmt, t ) );
         }
 
         template< typename T1, typename T2 >
-        safestring( const std::string &fmt, const T1 &t1, const T2 &t2 ) : std::string() {
-            std::string t[] = { std::string(), safestring(t1), safestring(t2) };
+        sfstring( const std::string &fmt, const T1 &t1, const T2 &t2 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1), sfstring(t2) };
             assign( safefmt( fmt, t ) );
         }
 
         template< typename T1, typename T2, typename T3 >
-        safestring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3 ) : std::string() {
-            std::string t[] = { std::string(), safestring(t1), safestring(t2), safestring(t3) };
+        sfstring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1), sfstring(t2), sfstring(t3) };
             assign( safefmt( fmt, t ) );
         }
 
         template< typename T1, typename T2, typename T3, typename T4 >
-        safestring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4 ) : std::string() {
-            std::string t[] = { std::string(), safestring(t1), safestring(t2), safestring(t3), safestring(t4) };
+        sfstring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1), sfstring(t2), sfstring(t3), sfstring(t4) };
             assign( safefmt( fmt, t ) );
         }
 
         template< typename T1, typename T2, typename T3, typename T4, typename T5 >
-        safestring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4, const T5 &t5 ) : std::string() {
-            std::string t[] = { std::string(), safestring(t1), safestring(t2), safestring(t3), safestring(t4), safestring(t5) };
+        sfstring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4, const T5 &t5 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1), sfstring(t2), sfstring(t3), sfstring(t4), sfstring(t5) };
             assign( safefmt( fmt, t ) );
         }
 
         template< typename T1, typename T2, typename T3, typename T4, typename T5, typename T6 >
-        safestring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4, const T5 &t5, const T6 &t6 ) : std::string() {
-            std::string t[] = { std::string(), safestring(t1), safestring(t2), safestring(t3), safestring(t4), safestring(t5), safestring(t6) };
+        sfstring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4, const T5 &t5, const T6 &t6 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1), sfstring(t2), sfstring(t3), sfstring(t4), sfstring(t5), sfstring(t6) };
             assign( safefmt( fmt, t ) );
         }
 
         template< typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7 >
-        safestring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4, const T5 &t5, const T6 &t6, const T7 &t7 ) : std::string() {
-            std::string t[] = { std::string(), safestring(t1), safestring(t2), safestring(t3), safestring(t4), safestring(t5), safestring(t6), safestring(t7) };
+        sfstring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4, const T5 &t5, const T6 &t6, const T7 &t7 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1), sfstring(t2), sfstring(t3), sfstring(t4), sfstring(t5), sfstring(t6), sfstring(t7) };
             assign( safefmt( fmt, t ) );
         }
 
         // chaining operators
 
         template< typename T >
-        safestring &operator +=( const T &t ) {
-            return append( safestring(t) ), *this;
+        sfstring &operator +=( const T &t ) {
+            return append( sfstring(t) ), *this;
         }
 
         template< typename T >
-        safestring &operator <<( const T &t ) {
-            return append( safestring(t) ), *this;
+        sfstring &operator <<( const T &t ) {
+            return append( sfstring(t) ), *this;
         }
 
-        safestring &operator <<( std::ostream &( *pf )(std::ostream &) ) {
+        sfstring &operator <<( std::ostream &( *pf )(std::ostream &) ) {
             return *pf == static_cast<std::ostream& ( * )(std::ostream&)>( std::endl ) ? (*this) += "\n", *this : *this;
         }
 
         // assignment sugars
 
         template< typename T >
-        safestring& operator=( const T &t ) {
+        sfstring& operator=( const T &t ) {
             if( &t != this ) {
-                *this = safestring(t);
+                *this = sfstring(t);
             }
             return *this;
         }
 
-        safestring &operator=( const char *t ) {
+        sfstring &operator=( const char *t ) {
             return assign( t ? t : "" ), *this;
         }
 
@@ -541,9 +555,9 @@ namespace heal {
             return n;
         }
 
-        safestring replace( const std::string &target, const std::string &replacement ) const {
+        sfstring replace( const std::string &target, const std::string &replacement ) const {
             size_t found = 0;
-            safestring s = *this;
+            sfstring s = *this;
             while( ( found = s.find( target, found ) ) != std::string::npos ) {
                 s.std::string::replace( found, target.length(), replacement );
                 found += replacement.length();
@@ -551,6 +565,42 @@ namespace heal {
             return s;
         }
     };   
+
+    class sfstrings : public std::deque< sfstring >
+    {
+        public:
+
+        sfstrings( unsigned size = 0 ) : std::deque< sfstring >( size )
+        {}
+
+        template <typename CONTAINER>
+        sfstrings( const CONTAINER &c ) : std::deque< sfstring >( c.begin(), c.end() ) 
+        {}
+
+        template <typename CONTAINER>
+        sfstrings &operator =( const CONTAINER &c ) {
+            if( &c != this ) {
+                *this = sfstrings( c );
+            }
+            return *this;
+        }
+
+        sfstring str( const char *format1 = "\1\n" ) const {
+            if( this->size() == 1 )
+                return *this->begin();
+
+            sfstring out;
+
+            for( const_iterator it = this->begin(); it != this->end(); ++it )
+                out += sfstring( format1, (*it) );
+
+            return out;
+        }
+
+        sfstring flat() const {
+            return str( "\1" );
+        }
+    };    
 }
 
 #endif

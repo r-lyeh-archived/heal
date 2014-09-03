@@ -80,9 +80,6 @@
 #   endif
 #   include <DbgHelp.h>
 #   pragma comment(lib, "dbghelp.lib")
-#   if defined(__GNUC__)
-#       undef __GNUC__                         // switch MingW users here from $gnuc() to $windows()
-#   endif
 #   ifndef TD_SHIELD_ICON
 #       define TD_SHIELD_ICON          MAKEINTRESOURCEW(-4)
 #   endif
@@ -103,6 +100,10 @@
 #   include <cxxabi.h>
 #endif
 
+#ifdef __MINGW32__
+#define backtrace(a,b) 0
+#define backtrace_symbols(a,b) 0
+#endif
 
 // API
 
@@ -480,16 +481,16 @@ std::string demangle( const std::string &mangled ) {
         return demangled;
         )
         $yes( /* addr2line way. wip & quick proof-of-concept. clean up required. */
-        heal::safestring binary = mangled.substr( 0, mangled.find_first_of('(') );
-        heal::safestring address = mangled.substr( mangled.find_last_of('[') + 1 );
+        heal::sfstring binary = mangled.substr( 0, mangled.find_first_of('(') );
+        heal::sfstring address = mangled.substr( mangled.find_last_of('[') + 1 );
         address.pop_back();
-        heal::safestring cmd( "addr2line -e \1 \2", binary, address );
+        heal::sfstring cmd( "addr2line -e \1 \2", binary, address );
         FILE *fp = popen( cmd.c_str(), "r" );
         if (!fp) { return mangled; }
         char demangled[1024];
         char *line_p = fgets(demangled, sizeof(demangled), fp);
         pclose(fp);
-        heal::safestring demangled_(demangled);
+        heal::sfstring demangled_(demangled);
         if( demangled_.size() ) demangled_.pop_back(); //remove \n
         return demangled_.size() && demangled_.at(0) == '?' ? mangled : demangled_;
         )
@@ -503,7 +504,7 @@ std::string demangle( const std::string &mangled ) {
             return mangled;
         int status = 0;
         char *demangled = abi::__cxa_demangle(funcname.c_str(), NULL, NULL, &status);
-        heal::safestring out( mangled );
+        heal::sfstring out( mangled );
         if( status == 0 && demangled )
             out = out.replace( funcname, demangled );
         if( demangled ) free( demangled );
@@ -513,6 +514,7 @@ std::string demangle( const std::string &mangled ) {
         char demangled[1024];
         return (UnDecorateSymbolName(mangled.c_str(), demangled, sizeof( demangled ), UNDNAME_COMPLETE)) ? std::string(demangled) : mangled;
     })
+    /*
     $gnuc({
         std::string out;
         int status = 0;
@@ -521,6 +523,7 @@ std::string demangle( const std::string &mangled ) {
         if( demangled ) free( demangled );
         return out;
     })
+    */
         return mangled;
 }
 
@@ -575,7 +578,7 @@ std::string demangle( const std::string &mangled ) {
                 std::vector<void *>(frames).swap(frames);
                 return;
             })
-            $gnuc({
+            $gnuc({ 
                 // Ensure the output is cleared
                 std::memset(out_frames, 0, (sizeof(void *)) * max_frames);
 
@@ -634,7 +637,7 @@ std::string demangle( const std::string &mangled ) {
                             line64 = line64_blank;
                             DWORD displacement = 0;
                             if( SymGetLineFromAddr64( process, (DWORD64) frames[i], &displacement, &line64 ) ) {
-                                backtraces[i] = heal::safestring( "\1 (\2, line \3)", symbol64->Name, line64.FileName, line64.LineNumber );
+                                backtraces[i] = heal::sfstring( "\1 (\2, line \3)", symbol64->Name, line64.FileName, line64.LineNumber );
                             } else {
                                 backtraces[i] = symbol64->Name;
                             }
@@ -672,9 +675,18 @@ std::string demangle( const std::string &mangled ) {
             std::vector<std::string> stacktrace = copy.unwind( skip_begin );
 
             for( size_t i = 0, end = stacktrace.size(); i < end; i++ )
-                stacktrace[i] = heal::safestring( format12, i + 1, stacktrace[i] );
+                stacktrace[i] = heal::sfstring( format12, i + 1, stacktrace[i] );
 
             return stacktrace;
+        }
+
+        std::string callstack::flat( const char *format12, size_t skip_begin ) const {
+            std::vector<std::string> vec = str( format12, skip_begin );
+            std::string str;
+            for( std::vector<std::string>::const_iterator it = vec.begin(), end = vec.end(); it != end; ++it ) {
+                str += *it;
+            }
+            return str;
         }
 
 std::vector<std::string> stacktrace( const char *format12, size_t skip_initial ) {
