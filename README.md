@@ -5,7 +5,7 @@ heal
 - Heal is stand-alone. OS dependencies only.
 - Heal is cross-platform. Full API is only supported under Windows, for now. Feel free to tweak heal.cpp and add more OSes :)
 - Heal pollutes a few macros on purpose. Sorry but I think this is convenient.
-- Heal is MIT licensed.
+- Heal is BOOST licensed.
 
 ### Sample
 ```c++
