@@ -41,7 +41,7 @@ namespace assertpp {
     class check {
         bool ok;
         std::deque< std::string > xpr;
-        template<typename T> static std::string to_str( const T &t ) { std::stringstream ss; return ss << t ? ss.str() : "??"; }
+        template<typename T> static std::string to_str( const T &t ) { std::stringstream ss; return (ss << t) ? ss.str() : "??"; }
     public:
         check( const char *const text, const char *const file, int line, bool result )
         :   xpr(4), ok(result)
