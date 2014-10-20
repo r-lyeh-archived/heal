@@ -4,7 +4,6 @@ heal
 - Heal is a lightweight C++ library to aid and debug applications. Requires C++11 (or C++03 with boost at least).
 - Heal is stand-alone. OS dependencies only.
 - Heal is cross-platform. Full API is only supported under Windows, for now. Feel free to tweak heal.cpp and add more OSes :)
-- Heal pollutes a few macros on purpose. Sorry but I think this is convenient.
 - Heal is BOOST licensed.
 
 ### Sample
@@ -45,18 +44,18 @@ offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F [ptr=0032F4F4 sz=11]
 0032F4F4 68 65 6c 6c 6f 20 77 6f 72 6c 64 ?? ?? ?? ?? ?? hex
 
 Debug build
-0) stacktrace (d:\prj\heal\heal.cpp, line 577)
-1) main (d:\prj\heal\sample.cc, line 16)
-2) __tmainCRTStartup (f:\dd\vctools\crt_bld\self_x86\crt\src\crt0.c, line 240)
+0) stacktrace (d:\prj\heal\heal.cpp:577)
+1) main (d:\prj\heal\sample.cc:16)
+2) __tmainCRTStartup (f:\dd\vctools\crt_bld\self_x86\crt\src\crt0.c:240)
 3) BaseThreadInitThunk
 4) RtlInitializeExceptionChain
 5) RtlInitializeExceptionChain
 
 Something went wrong: debugger() didnt work
-#0 stacktrace (d:\prj\heal\heal.cpp, line 577)
-#1 die (d:\prj\heal\heal.cpp, line 586)
-#2 main (d:\prj\heal\sample.cc, line 19)
-#3 __tmainCRTStartup (f:\dd\vctools\crt_bld\self_x86\crt\src\crt0.c, line 240)
+#0 stacktrace (d:\prj\heal\heal.cpp:577)
+#1 die (d:\prj\heal\heal.cpp:586)
+#2 main (d:\prj\heal\sample.cc:19)
+#3 __tmainCRTStartup (f:\dd\vctools\crt_bld\self_x86\crt\src\crt0.c:240)
 #4 BaseThreadInitThunk
 #5 RtlInitializeExceptionChain
 #6 RtlInitializeExceptionChain
@@ -69,7 +68,6 @@ D:\prj\heal>
 - `fail()` @todoc.
 - `warns(cb)` @todoc.
 - `fails(cb)` @todoc.
-- `$warning(string)` @todoc.
 - `bool debugger(string reason)` tries to invoke debugger, if possible.
 - `void breakpoint()` breaks execution, if possible.
 - `string demangle(string symbol)` returns an human-readable mangled-symbol, if possible.
@@ -102,38 +100,3 @@ offset   00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F [ptr=0014F844 sz=10]
 
 ### API:
 @todoc, chain of callbacks
-
-### Macros
-```
-$yes
-$no
-
-$windows, $welse
-$linux, $lelse
-$apple, $aelse
-$undefined_os
-
-$msvc, $melse
-$gnuc, $gelse
-$clang, $celse
-$undefined_compiler
-
-$throw, $telse
-
-$warning
-$debug, $release
-
-$on
-$is
-$has
-
-$quote
-
-$comment
-$uncomment
-
-$cpp11
-$cpp03
-
-$tls(x)
-```

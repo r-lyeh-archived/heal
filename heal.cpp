@@ -456,6 +456,24 @@ void errorbox( const  std::string &body, const std::string &title ) { show( body
 #endif
 
 std::string demangle( const std::string &mangled ) {
+    $apple({
+        std::stringstream ss;
+        if( !(ss << mangled) )
+            return mangled;
+        std::string number, filename, address, funcname, plus, offset;
+        if( !(ss >> number >> filename >> address >> funcname >> plus >> offset) )
+            return mangled;
+        int status = 0;
+        char *demangled = abi::__cxa_demangle(funcname.c_str(), NULL, NULL, &status);
+        heal::sfstring out;
+        if( status == 0 && demangled ) {
+            out = std::string() + demangled + " ([" + filename + "]:" + offset + ")";
+        } else {
+            out = std::string() + funcname  + " ([" + filename + "]:" + offset + ")";
+        }
+        if( demangled ) free( demangled );
+        return out;
+    })
     $linux({
         $no( /* c++filt way */
         FILE *fp = popen( (std::string("echo -n \"") + mangled + std::string("\" | c++filt" )).c_str(), "r" );
@@ -479,21 +497,6 @@ std::string demangle( const std::string &mangled ) {
         if( demangled_.size() ) demangled_.pop_back(); //remove \n
         return demangled_.size() && demangled_.at(0) == '?' ? mangled : demangled_;
         )
-    })
-    $apple({
-        std::stringstream ss;
-        if( !(ss << mangled) )
-            return mangled;
-        std::string number, filename, address, funcname, plus, offset;
-        if( !(ss >> number >> filename >> address >> funcname >> plus >> offset) )
-            return mangled;
-        int status = 0;
-        char *demangled = abi::__cxa_demangle(funcname.c_str(), NULL, NULL, &status);
-        heal::sfstring out( mangled );
-        if( status == 0 && demangled )
-            out = out.replace( funcname, demangled );
-        if( demangled ) free( demangled );
-        return out;
     })
     $windows({
         char demangled[1024];
@@ -622,7 +625,7 @@ std::string demangle( const std::string &mangled ) {
                             line64 = line64_blank;
                             DWORD displacement = 0;
                             if( SymGetLineFromAddr64( process, (DWORD64) frames[i], &displacement, &line64 ) ) {
-                                backtraces[i] = heal::sfstring( "\1 (\2, line \3)", symbol64->Name, line64.FileName, line64.LineNumber );
+                                backtraces[i] = heal::sfstring( "\1 (\2:\3)", symbol64->Name, line64.FileName, line64.LineNumber );
                             } else {
                                 backtraces[i] = symbol64->Name;
                             }
@@ -866,8 +869,6 @@ std::string prompt( const std::string &current_value, const std::string &title, 
 }
 
 #endif
-
-
 
 
 #if $on($msvc)
@@ -1182,4 +1183,3 @@ std::string prompt( const std::string &current_value, const std::string &title, 
 #undef $yes
 */
 
-#undef $check
