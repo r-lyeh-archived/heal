@@ -6,6 +6,9 @@
 
 /* Public API */
 
+#if defined(_WIN32) && _MSC_VER > 1600
+#	include <eh.h>
+#endif
 #include <cassert>
 
 #if !(defined(NDEBUG) || defined(_NDEBUG))

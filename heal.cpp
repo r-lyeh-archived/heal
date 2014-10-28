@@ -96,7 +96,7 @@
 
 // INFO MESSAGES
 // Reminders for retrieving symbols
-
+/*
 #  if $on($msvc)
     $warning( "<heal/heal.cpp> says: do not forget /Zi, /Z7 or /C7 compiler settings! /Oy- also helps!" )
 #elif $on($clang)
@@ -104,7 +104,7 @@
 #elif $on($gnuc)
     $warning( "<heal/heal.cpp> says: do not forget -g -lpthread compiler settings!" )
 #endif
-
+*/
 // ASSERT
 
 namespace heal {
@@ -879,7 +879,7 @@ std::string prompt( const std::string &current_value, const std::string &title, 
 #if $on($windows)
 #   pragma comment(lib,"user32.lib")
 #   pragma comment(lib,"gdi32.lib")
-$warning("<heal/heal.cpp> says: dialog aware dpi fix (@todo)")
+//$warning("<heal/heal.cpp> says: dialog aware dpi fix (@todo)")
 
 std::string prompt( const std::string &current_value, const std::string &title, const std::string &caption )
 {
