@@ -60,8 +60,8 @@ int main()
     srand( time(0) );
     assert( rand() < RAND_MAX/2 && "this will fail half the times you try" );
 
-    if( !debugger("We are about to launch debugger, if possible.") ) {
-        die( "debugger() call didnt work. Exiting..." );
+    if( debugger("We are about to launch debugger, if possible.") ) {
+        die( "debugger() call did work. Exiting..." );
     }
 
     std::cout << "All ok." << std::endl;
