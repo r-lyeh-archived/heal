@@ -1,4 +1,4 @@
-heal
+heal <a href="https://travis-ci.org/r-lyeh/heal"><img src="https://api.travis-ci.org/r-lyeh/heal.svg?branch=master" align="right" /></a>
 ====
 
 - Heal is a lightweight C++ library to aid and debug applications. Requires C++11 (or C++03 with boost at least).
