@@ -317,13 +317,14 @@ bool debugger( const std::string &reason )
 // os based
 
     $windows(
-        if( IsDebuggerPresent() )
-            int(), true;
+        if( IsDebuggerPresent() ) {
+            return breakpoint(), true;            
+        }
     )
 
     $linux(
         if( detect_gdb() ) {
-            int(), true;
+            return breakpoint(), true;
         }
         // else try to invoke && attach to current process
 
