@@ -833,7 +833,7 @@ std::string timestamp() {
 
 
 /*
- * Simple prompt dialog (based on legolas558's code). BOOST license.
+ * Simple prompt dialog (based on legolas558's code). zlib/libpng license.
  * - rlyeh
  */
 

@@ -1,6 +1,6 @@
 // -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< --
 
-/* Smart assert replacement for LHS/RHS values. BOOST licensed.
+/* Smart assert replacement for LHS/RHS values. zlib/libpng licensed.
  * - rlyeh ~~ listening to Tuber / Desert Overcrowded
  */
 
@@ -81,7 +81,7 @@ namespace assertpp {
 // -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< -- 8< --
 
 // std 11 <-> 03/w-boost bridge compatiblity layer, plus a few macro utils.
-// - rlyeh, boost licensed.
+// - rlyeh, zlib/libpng licensed.
 
 #ifndef __BRIDGE_HPP__
 #define __BRIDGE_HPP__

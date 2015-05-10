@@ -4,7 +4,7 @@ heal <a href="https://travis-ci.org/r-lyeh/heal"><img src="https://api.travis-ci
 - Heal is a lightweight C++ library to aid and debug applications. Requires C++11 (or C++03 with boost at least).
 - Heal is stand-alone. OS dependencies only.
 - Heal is cross-platform. Full API is only supported under Windows, for now. Feel free to tweak heal.cpp and add more OSes :)
-- Heal is BOOST licensed.
+- Heal is zlib/libpng licensed.
 
 ### Sample
 ```c++
