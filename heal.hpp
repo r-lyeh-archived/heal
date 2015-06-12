@@ -7,7 +7,7 @@
 /* Public API */
 
 #if defined(_WIN32) && _MSC_VER > 1600
-#	include <eh.h>
+#   include <eh.h>
 #endif
 #include <cassert>
 
@@ -94,7 +94,7 @@ namespace assertpp {
 #if (__cplusplus < 201103L && !defined(_MSC_VER)) || (defined(_MSC_VER) && (_MSC_VER < 1700)) || (defined(__GLIBCXX__) && __GLIBCXX__ < 20130322L)
 #   define BRIDGE_VERSION 2003
 #   include <boost/functional.hpp> // if old libstdc++ or msc libs are found, use boost::function
-#   include <boost/function.hpp>   // 
+#   include <boost/function.hpp>   //
 #   include <boost/thread.hpp>     // and boost::thread
 #   include <boost/cstdint.hpp>
 #   include <boost/type_traits.hpp>
@@ -122,7 +122,7 @@ namespace std {
 #define $cpp03          $yes
 #endif
 
-// Thread Local Storage 
+// Thread Local Storage
 
 #if defined(__MINGW32__) || defined(__SUNPRO_C) || defined(__xlc__) || defined(__GNUC__) || defined(__clang__) || defined(__GNUC__) // __INTEL_COMPILER on linux
 //   MingW, Solaris Studio C/C++, IBM XL C/C++,[3] GNU C,[4] Clang[5] and Intel C++ Compiler (Linux systems)
@@ -263,7 +263,7 @@ namespace std {
 
  * - rlyeh // ~listening to Kalas - Monuments to Ruins
  */
- 
+
 #ifndef __HEALHPP__
 #define __HEALHPP__
 
@@ -431,9 +431,9 @@ namespace heal {
         }
 #else
         template<typename T>
-        sfstring( const T &t ) : std::string( std::string(t) ) 
+        sfstring( const T &t ) : std::string( std::string(t) )
         {}
-        sfstring( const std::string &t ) : std::string( t ) 
+        sfstring( const std::string &t ) : std::string( t )
         {}
 
         sfstring( const int &t ) : std::string() {
@@ -448,13 +448,13 @@ namespace heal {
             char buf[128];
             if( sprintf(buf, "%llu", t ) > 0 ) this->assign(buf);
         }
+/* // only for msvc <= vs2013 community
 $msvc(
         sfstring( const size_t &t ) : std::string() {
             char buf[128];
             if( sprintf(buf, "%lu", t ) > 0 ) this->assign(buf);
         }
-)
-
+) */
         sfstring( const float &t ) : std::string() {
             char buf[128];
             if( sprintf(buf, "%f", t ) > 0 ) this->assign(buf);
@@ -464,7 +464,7 @@ $msvc(
             if( sprintf(buf, "%f", t ) > 0 ) this->assign(buf);
         }
 
-        sfstring( const char *t ) : std::string( t ? t : "" ) 
+        sfstring( const char *t ) : std::string( t ? t : "" )
         {}
         sfstring( void *t ) : std::string() {
             char buf[128];
@@ -475,7 +475,7 @@ $msvc(
             char buf[128];
             if( sprintf(buf, "%p", t ) > 0 ) this->assign(buf);
         }
-        sfstring( char *t ) : std::string( t ? t : "" ) 
+        sfstring( char *t ) : std::string( t ? t : "" )
         {}
 #endif
 
@@ -588,7 +588,7 @@ $msvc(
             }
             return s;
         }
-    };   
+    };
 
     class sfstrings : public std::deque< sfstring >
     {
@@ -598,7 +598,7 @@ $msvc(
         {}
 
         template <typename CONTAINER>
-        sfstrings( const CONTAINER &c ) : std::deque< sfstring >( c.begin(), c.end() ) 
+        sfstrings( const CONTAINER &c ) : std::deque< sfstring >( c.begin(), c.end() )
         {}
 
         template <typename CONTAINER>
@@ -624,7 +624,7 @@ $msvc(
         sfstring flat() const {
             return str( "\1" );
         }
-    };    
+    };
 
 
     /*
