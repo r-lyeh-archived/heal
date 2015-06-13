@@ -267,6 +267,8 @@ namespace std {
 #ifndef __HEALHPP__
 #define __HEALHPP__
 
+#include <inttypes.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #include <iostream>
@@ -440,43 +442,46 @@ namespace heal {
             char buf[128];
             if( sprintf(buf, "%d", t ) > 0 ) this->assign(buf);
         }
-        sfstring( const unsigned long &t ) : std::string() {
+        sfstring( const uint16_t &t ) : std::string() {
             char buf[128];
-            if( sprintf(buf, "%lu", t ) > 0 ) this->assign(buf);
+            if( sprintf(buf, "%" SCNu16, t ) > 0 ) this->assign(buf);
         }
-        sfstring( const unsigned long long &t ) : std::string() {
+        sfstring( const uint32_t &t ) : std::string() {
             char buf[128];
-            if( sprintf(buf, "%llu", t ) > 0 ) this->assign(buf);
+            if( sprintf(buf, "%" SCNu32, t ) > 0 ) this->assign(buf);
         }
-/* // only for msvc <= vs2013 community
-$msvc(
-        sfstring( const size_t &t ) : std::string() {
+        sfstring( const uint64_t &t ) : std::string() {
             char buf[128];
-            if( sprintf(buf, "%lu", t ) > 0 ) this->assign(buf);
+            if( sprintf(buf, "%" SCNu64, t ) > 0 ) this->assign(buf);
         }
-) */
         sfstring( const float &t ) : std::string() {
             char buf[128];
             if( sprintf(buf, "%f", t ) > 0 ) this->assign(buf);
         }
         sfstring( const double &t ) : std::string() {
             char buf[128];
-            if( sprintf(buf, "%f", t ) > 0 ) this->assign(buf);
+            if( sprintf(buf, "%lf", t ) > 0 ) this->assign(buf);
         }
+$msvc(
+        sfstring( const DWORD &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%" SCNu32, t ) > 0 ) this->assign(buf);
+        }
+)
 
+        sfstring( char *t ) : std::string( t ? t : "" )
+        {}
         sfstring( const char *t ) : std::string( t ? t : "" )
         {}
+
         sfstring( void *t ) : std::string() {
             char buf[128];
             if( sprintf(buf, "%p", t ) > 0 ) this->assign(buf);
         }
-
         sfstring( const void *t ) : std::string() {
             char buf[128];
             if( sprintf(buf, "%p", t ) > 0 ) this->assign(buf);
         }
-        sfstring( char *t ) : std::string( t ? t : "" )
-        {}
 #endif
 
         // extended constructors; safe formatting
