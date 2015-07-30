@@ -1,6 +1,6 @@
 /*
- * Heal is a lightweight C++ framework to aid and debug applications.
- * Copyright (c) 2011, 2012, 2013, 2014 Mario 'rlyeh' Rodriguez
+ * Heal is a lightweight C++ library to aid and debug applications.
+ * Copyright (c) 2011, 2012, 2013, 2014, 2015 Mario 'rlyeh' Rodriguez
 
  * Callstack code is based on code by Magnus Norddahl (See http://goo.gl/LM5JB)
  * Mem/CPU OS code is based on code by David Robert Nadeau (See http://goo.gl/8P5Jqv)
@@ -154,18 +154,7 @@ void fail( const std::string &error ) {
     }
 }
 
-bool is_asserting()
-{
-    /*
-    static bool enabled = ( enabled = false, assert( enabled ^= true ), enabled );
-    return enabled;
-    */
-    /*
-    static struct once { bool are_enabled; once() : are_enabled(false) {
-        assert( are_enabled ^= true );
-    } } asserts;
-    return asserts.are_enabled;
-    */
+bool is_asserting() {
     bool asserting = false;
     assert( asserting |= true );
     return asserting;
@@ -175,20 +164,17 @@ bool is_asserting()
 // IS_RELEASE
 
 bool is_debug() {
-    $debug(
-    return true;
-    )
-    $release(
-    return false;
-    )
+    return $debug(true) $release(false);
 }
 bool is_release() {
-    $release(
-    return true;
-    )
-    $debug(
-    return false;
-    )
+    return !is_debug();
+}
+
+bool is_devel() {
+    return $devel(true) $public(false);
+}
+bool is_public() {
+    return !is_devel();
 }
 
 // DEBUGGER

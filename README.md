@@ -16,8 +16,6 @@ int main()
     if( !is_asserting() )
         errorbox( "Asserts are disabled. No assertions will be perfomed" );
 
-    assert( 1 < 2 && "Try to tweak this to see the detailed info" );
-
     std::cout << hexdump(3.14159f) << std::endl;
     std::cout << hexdump("hello world") << std::endl;
 
@@ -63,7 +61,6 @@ D:\prj\heal>
 ```
 
 ### API
-- `assert(expr)`. Same behavior, extra information.
 - `warn()` @todoc.
 - `fail()` @todoc.
 - `warns(cb)` @todoc.
@@ -75,8 +72,10 @@ D:\prj\heal>
 - `errorbox(string body,string title)` shows an error window.
 - `prompt(string value, string title, string caption)` shows a prompt window.
 - `bool is_asserting()` returns true if assertions are enabled.
-- `bool is_release()` returns true if either `NDEBUG` or `_NDEBUG` preprocessor directives are defined.
+- `bool is_release()` returns true if either `NDEBUG`, `_NDEBUG` or `RELEASE` preprocessor directives are defined.
 - `bool is_debug()` returns negation of `is_release()`
+- `bool is_public()` returns true if either `NDEVEL`, `_NDEVEL` or `PUBLIC` preprocessor directives are defined.
+- `bool is_devel()` returns negation of `is_public()`
 - `safestring class` @todoc.
 - `callstack()` @todoc.
 - `stackstring()` @todoc.
