@@ -8,17 +8,13 @@
 
 #include "heal.hpp"
 
-using namespace heal;
-
 // print this on compile time
 $warning("I *still* have to document this library");
 
-// html template for web server
-extern std::string html_template;
+int main() {
+    using namespace heal;
 
-int main()
-{
-    // print some stats
+    // print some info
     std::cout << timestamp() << std::endl;
     std::cout << ( is_debug() ? "Debug build" : "Release build" ) << std::endl;
 
@@ -57,14 +53,10 @@ int main()
         alert( "Asserts are enabled. Assertions will be perfomed" );
     }
 
-    srand( time(0) );
-    assert( rand() < RAND_MAX/2 && "this will fail half the times you try" );
-
     if( debugger("We are about to launch debugger, if possible.") ) {
         die( "debugger() call did work. Exiting..." );
     }
 
     std::cout << "All ok." << std::endl;
-    return 0;
 }
 

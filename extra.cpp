@@ -1,16 +1,12 @@
-/*
- * Heal is a lightweight C++ framework to aid and debug applications.
- * Copyright (c) 2011, 2012, 2013, 2014 Mario 'rlyeh' Rodriguez
- *
- * Distributed under the Boost Software License, Version 1.0.
- * (See license copy at http://www.boost.org/LICENSE_1_0.txt)
+// Heal is a lightweight C++ framework to aid and debug applications.
+// - rlyeh, zlib/libpng licensed
 
- * Mem/CPU OS code is based on code by David Robert Nadeau (See http://goo.gl/8P5Jqv)
- * Distributed under Creative Commons Attribution 3.0 Unported License
- * http://creativecommons.org/licenses/by/3.0/deed.en_US
- */
+// Mem/CPU OS code is based on code by David Robert Nadeau (See http://goo.gl/8P5Jqv)
+// Distributed under Creative Commons Attribution 3.0 Unported License
+// http://creativecommons.org/licenses/by/3.0/deed.en_US
 
 #include "heal.hpp"
+#include "extra.hpp"
 
 namespace {
 

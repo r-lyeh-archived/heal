@@ -1,15 +1,10 @@
-/*
- * Heal is a lightweight C++ library to aid and debug applications.
- * Copyright (c) 2011, 2012, 2013, 2014, 2015 Mario 'rlyeh' Rodriguez
+// Heal is a lightweight C++ framework to aid and debug applications.
+// - rlyeh, zlib/libpng licensed // ~listening to Kalas - Monuments to Ruins
 
- * Callstack code is based on code by Magnus Norddahl (See http://goo.gl/LM5JB)
- * Mem/CPU OS code is based on code by David Robert Nadeau (See http://goo.gl/8P5Jqv)
-
- * Distributed under the Boost Software License, Version 1.0.
- * (See license copy at http://www.boost.org/LICENSE_1_0.txt)
-
- * - rlyeh // ~listening to Kalas - Monuments to Ruins
- */
+// Callstack code is based on code by Magnus Norddahl (See http://goo.gl/LM5JB)
+// Mem/CPU OS code is based on code by David Robert Nadeau (See http://goo.gl/8P5Jqv)
+// Distributed under Creative Commons Attribution 3.0 Unported License
+// http://creativecommons.org/licenses/by/3.0/deed.en_US
 
 // A few tweaks before loading STL on MSVC
 // This improves stack unwinding.
@@ -31,6 +26,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 
 #include <algorithm>
 #include <iostream>
@@ -93,6 +91,236 @@
 // API
 
 #include "heal.hpp"
+
+namespace heal {
+    // sfstring is a safe string replacement that does not rely on stringstream
+    // this is actually safer on corner cases, like crashes, exception unwinding and in exit conditions
+    class sfstring : public std::string
+    {
+        public:
+
+        // basic constructors
+
+        sfstring() : std::string()
+        {}
+
+        template<size_t N>
+        sfstring( const char (&cstr)[N] ) : std::string( cstr )
+        {}
+
+        // constructor sugars
+
+#if 0
+        // version that may crash on /MT on destructors
+        // (just because it depends on std::locale which may be deinitialized before crashing code)
+        template <typename T>
+        /* explicit */ sfstring( const T &t ) : std::string()
+        {
+            std::stringstream ss;
+            ss.precision( std::numeric_limits< long double >::digits10 + 1 );
+            if( ss << t )
+                this->assign( ss.str() );
+        }
+#else
+        template<typename T>
+        sfstring( const T &t ) : std::string( std::string(t) )
+        {}
+        sfstring( const std::string &t ) : std::string( t )
+        {}
+
+        sfstring( const int &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%d", t ) > 0 ) this->assign(buf);
+        }
+        sfstring( const uint16_t &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%" SCNu16, t ) > 0 ) this->assign(buf);
+        }
+        sfstring( const uint32_t &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%" SCNu32, t ) > 0 ) this->assign(buf);
+        }
+        sfstring( const uint64_t &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%" SCNu64, t ) > 0 ) this->assign(buf);
+        }
+        sfstring( const float &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%f", t ) > 0 ) this->assign(buf);
+        }
+        sfstring( const double &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%lf", t ) > 0 ) this->assign(buf);
+        }
+$msvc(
+        sfstring( const DWORD &t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%" SCNu32, t ) > 0 ) this->assign(buf);
+        }
+)
+
+        sfstring( char *t ) : std::string( t ? t : "" )
+        {}
+        sfstring( const char *t ) : std::string( t ? t : "" )
+        {}
+
+        sfstring( void *t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%p", t ) > 0 ) this->assign(buf);
+        }
+        sfstring( const void *t ) : std::string() {
+            char buf[128];
+            if( sprintf(buf, "%p", t ) > 0 ) this->assign(buf);
+        }
+#endif
+
+        // extended constructors; safe formatting
+
+        private:
+        template<unsigned N>
+        std::string &safefmt( const std::string &fmt, std::string (&t)[N] ) {
+            for( std::string::const_iterator it = fmt.begin(), end = fmt.end(); it != end; ++it ) {
+                unsigned index(*it);
+                if( index <= N ) t[0] += t[index];
+                else t[0] += *it;
+            }
+            return t[0];
+        }
+        public:
+
+        template< typename T1 >
+        sfstring( const std::string &fmt, const T1 &t1 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        template< typename T1, typename T2 >
+        sfstring( const std::string &fmt, const T1 &t1, const T2 &t2 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1), sfstring(t2) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        template< typename T1, typename T2, typename T3 >
+        sfstring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1), sfstring(t2), sfstring(t3) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        template< typename T1, typename T2, typename T3, typename T4 >
+        sfstring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1), sfstring(t2), sfstring(t3), sfstring(t4) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        template< typename T1, typename T2, typename T3, typename T4, typename T5 >
+        sfstring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4, const T5 &t5 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1), sfstring(t2), sfstring(t3), sfstring(t4), sfstring(t5) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        template< typename T1, typename T2, typename T3, typename T4, typename T5, typename T6 >
+        sfstring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4, const T5 &t5, const T6 &t6 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1), sfstring(t2), sfstring(t3), sfstring(t4), sfstring(t5), sfstring(t6) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        template< typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7 >
+        sfstring( const std::string &fmt, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4, const T5 &t5, const T6 &t6, const T7 &t7 ) : std::string() {
+            std::string t[] = { std::string(), sfstring(t1), sfstring(t2), sfstring(t3), sfstring(t4), sfstring(t5), sfstring(t6), sfstring(t7) };
+            assign( safefmt( fmt, t ) );
+        }
+
+        // chaining operators
+
+        template< typename T >
+        sfstring &operator +=( const T &t ) {
+            return append( sfstring(t) ), *this;
+        }
+
+        template< typename T >
+        sfstring &operator <<( const T &t ) {
+            return append( sfstring(t) ), *this;
+        }
+
+        sfstring &operator <<( std::ostream &( *pf )(std::ostream &) ) {
+            return *pf == static_cast<std::ostream& ( * )(std::ostream&)>( std::endl ) ? (*this) += "\n", *this : *this;
+        }
+
+        // assignment sugars
+
+        template< typename T >
+        sfstring& operator=( const T &t ) {
+            if( &t != this ) {
+                *this = sfstring(t);
+            }
+            return *this;
+        }
+
+        sfstring &operator=( const char *t ) {
+            return assign( t ? t : "" ), *this;
+        }
+
+        std::string str() const {
+            return *this;
+        }
+
+        size_t count( const std::string &substr ) const {
+            size_t n = 0;
+            std::string::size_type pos = 0;
+            while( (pos = this->find( substr, pos )) != std::string::npos ) {
+                n++;
+                pos += substr.size();
+            }
+            return n;
+        }
+
+        sfstring replace( const std::string &target, const std::string &replacement ) const {
+            size_t found = 0;
+            sfstring s = *this;
+            while( ( found = s.find( target, found ) ) != std::string::npos ) {
+                s.std::string::replace( found, target.length(), replacement );
+                found += replacement.length();
+            }
+            return s;
+        }
+    };
+
+    class sfstrings : public std::deque< sfstring >
+    {
+        public:
+
+        sfstrings( unsigned size = 0 ) : std::deque< sfstring >( size )
+        {}
+
+        template <typename CONTAINER>
+        sfstrings( const CONTAINER &c ) : std::deque< sfstring >( c.begin(), c.end() )
+        {}
+
+        template <typename CONTAINER>
+        sfstrings &operator =( const CONTAINER &c ) {
+            if( &c != this ) {
+                *this = sfstrings( c );
+            }
+            return *this;
+        }
+
+        sfstring str( const char *format1 = "\1\n" ) const {
+            if( this->size() == 1 )
+                return *this->begin();
+
+            sfstring out;
+
+            for( const_iterator it = this->begin(); it != this->end(); ++it )
+                out += sfstring( format1, (*it) );
+
+            return out;
+        }
+
+        sfstring flat() const {
+            return str( "\1" );
+        }
+    };
+}
 
 // INFO MESSAGES
 // Reminders for retrieving symbols
@@ -748,14 +976,13 @@ std::string hexdump( const void *data, size_t num_bytes, const void *self )
         }
     };
 
-	using std::max;
     unsigned maxwidth = 80;
     unsigned width = 16; //column width
     unsigned width_offset_block = (8 + 1);
     unsigned width_chars_block  = (width * 3 + 1) + sizeof("asc");
     unsigned width_hex_block    = (width * 3 + 1) + sizeof("hex");
-    unsigned width_padding = max( 0, int( maxwidth - ( width_offset_block + width_chars_block + width_hex_block ) ) );
-	unsigned blocks = width_padding / ( width_chars_block + width_hex_block ) ;
+    unsigned width_padding = (std::max)( 0, int( maxwidth - ( width_offset_block + width_chars_block + width_hex_block ) ) );
+    unsigned blocks = width_padding / ( width_chars_block + width_hex_block ) ;
 
     unsigned dumpsize = ( num_bytes < width * 16 ? num_bytes : width * 16 ); //16 lines max
 
